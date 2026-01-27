@@ -71,11 +71,21 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, input
 		}
 	}
 
+	email := current.Email
+	if input.Email != nil {
+		email = input.Email
+	}
+
+	avatarURL := current.AvatarURL
+	if input.AvatarURL != nil {
+		avatarURL = input.AvatarURL
+	}
+
 	updatedUser, err := s.store.Users.UpdateUser(ctx, store.UpdateUserParams{
 		ID:           userID,
-		Email:        input.Email,
+		Email:        email,
 		Name:         input.Name,
-		AvatarURL:    input.AvatarURL,
+		AvatarURL:    avatarURL,
 		PasswordHash: current.PasswordHash,
 	})
 	if err != nil {

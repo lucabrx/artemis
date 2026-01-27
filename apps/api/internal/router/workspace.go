@@ -20,5 +20,6 @@ func RegisterWorkspaceRoutes(r *gin.RouterGroup, h *handler.WorkspaceHandler, to
 		protected.POST("/:id/members", h.AddMember)
 		protected.GET("/:id/members", h.ListMembers)
 		protected.DELETE("/:id/members/:user_id", h.RemoveMember)
+		protected.POST("/:id/avatar", h.UploadAvatar)
 	}
 }

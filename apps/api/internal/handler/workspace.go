@@ -24,8 +24,8 @@ type createWorkspaceRequest struct {
 }
 
 type addMemberRequest struct {
-	UserID uuid.UUID `json:"user_id" binding:"required"`
-	Role   string    `json:"role" binding:"required,oneof=admin member"`
+	Email string `json:"email" binding:"required,email"`
+	Role  string `json:"role" binding:"required,oneof=admin member"`
 }
 
 // CreateWorkspace godoc
@@ -262,7 +262,8 @@ func (h *WorkspaceHandler) AddMember(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.AddMember(c.Request.Context(), userId, workspaceId, req.UserID, req.Role); err != nil {
+	member, err := h.service.AddMemberByEmail(c.Request.Context(), userId, workspaceId, req.Email, req.Role)
+	if err != nil {
 		if errors.Is(err, service.ErrForbidden) {
 			c.Error(apperr.Forbidden("access denied"))
 			return
@@ -271,12 +272,17 @@ func (h *WorkspaceHandler) AddMember(c *gin.Context) {
 			c.Error(apperr.BadRequest("invalid role"))
 			return
 		}
-		// Assuming generic db error for duplicate key
+		if err.Error() == "user not found" || err == service.ErrWorkspaceNotFound { // store.ErrUserNotFound check
+		}
+		if err.Error() == "user not found" { // store.ErrUserNotFound
+			c.Error(apperr.NotFound("user not found"))
+			return
+		}
+
 		c.Error(apperr.Internal(err))
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "member added"})
+	c.JSON(http.StatusOK, member)
 }
 
 // RemoveMember godoc
@@ -362,4 +368,63 @@ func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, members)
+}
+
+// UploadAvatar godoc
+// @Summary      Upload workspace avatar
+// @Description  Upload a new avatar image for the workspace
+// @Tags         workspace
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id      path      string  true  "Workspace ID"
+// @Param        avatar  formData  file    true  "Avatar image"
+// @Success      200     {object}  map[string]string
+// @Failure      400     {object}  apperr.AppError
+// @Failure      401     {object}  apperr.AppError
+// @Failure      403     {object}  apperr.AppError
+// @Failure      500     {object}  apperr.AppError
+// @Router       /workspaces/{id}/avatar [post]
+func (h *WorkspaceHandler) UploadAvatar(c *gin.Context) {
+	userId, err := getUserId(c)
+	if err != nil {
+		c.Error(apperr.Unauthorized(err.Error()))
+		return
+	}
+
+	workspaceId, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.Error(apperr.BadRequest("invalid workspace id"))
+		return
+	}
+
+	file, header, err := c.Request.FormFile("avatar")
+	if err != nil {
+		c.Error(apperr.BadRequest("invalid file"))
+		return
+	}
+	defer file.Close()
+
+	if header.Size > 5*1024*1024 {
+		c.Error(apperr.BadRequest("file size too large (max 5MB)"))
+		return
+	}
+
+	contentType := header.Header.Get("Content-Type")
+	if contentType != "image/jpeg" && contentType != "image/png" && contentType != "image/webp" {
+		c.Error(apperr.BadRequest("invalid file type (allowed: jpeg, png, webp)"))
+		return
+	}
+
+	avatarURL, err := h.service.UploadAvatar(c.Request.Context(), userId, workspaceId, file, header.Size, contentType)
+	if err != nil {
+		if errors.Is(err, service.ErrForbidden) {
+			c.Error(apperr.Forbidden("access denied"))
+			return
+		}
+		c.Error(apperr.Internal(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"avatar_url": avatarURL})
 }

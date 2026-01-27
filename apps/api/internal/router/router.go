@@ -35,7 +35,7 @@ func New(cfg Config) *gin.Engine {
 
 	authService := service.NewAuthService(cfg.Store, cfg.Cache, cfg.TokenMaker, cfg.TokenConfig)
 	userService := service.NewUserService(cfg.Store, cfg.Cache, cfg.Storage)
-	workspaceService := service.NewWorkspaceService(cfg.Store)
+	workspaceService := service.NewWorkspaceService(cfg.Store, cfg.Storage)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)

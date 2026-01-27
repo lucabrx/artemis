@@ -28,6 +28,9 @@ type WorkspaceMember struct {
 	UserID      uuid.UUID `json:"user_id" db:"user_id"`
 	Role        string    `json:"role" db:"role"`
 	JoinedAt    time.Time `json:"joined_at" db:"joined_at"`
+	Name        string    `json:"name" db:"name"`
+	Email       string    `json:"email" db:"email"`
+	AvatarURL   *string   `json:"avatar_url" db:"avatar_url"`
 }
 
 type WorkspaceWithRole struct {
@@ -50,6 +53,7 @@ type WorkspaceRepository interface {
 	RemoveWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID) error
 	GetUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]WorkspaceWithRole, error)
 	GetWorkspaceMemberRole(ctx context.Context, workspaceID, userID uuid.UUID) (string, error)
+	UpdateWorkspaceAvatar(ctx context.Context, id uuid.UUID, avatarURL string) (*Workspace, error)
 }
 
 type workspaceRepository struct {
@@ -105,6 +109,24 @@ func (r *workspaceRepository) UpdateWorkspace(ctx context.Context, id uuid.UUID,
 	return &workspace, nil
 }
 
+func (r *workspaceRepository) UpdateWorkspaceAvatar(ctx context.Context, id uuid.UUID, avatarURL string) (*Workspace, error) {
+	var workspace Workspace
+	query := `
+		UPDATE workspaces
+		SET avatar_url = $1, updated_at = NOW()
+		WHERE id = $2
+		RETURNING id, name, avatar_url, created_at, updated_at
+	`
+	err := r.db.GetContext(ctx, &workspace, query, avatarURL, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrWorkspaceNotFound
+		}
+		return nil, err
+	}
+	return &workspace, nil
+}
+
 func (r *workspaceRepository) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM workspaces WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
@@ -117,12 +139,18 @@ func (r *workspaceRepository) AddWorkspaceMember(ctx context.Context, workspaceI
 		VALUES ($1, $2, $3)
 	`
 	_, err := r.db.ExecContext(ctx, query, workspaceID, userID, role)
-	return err // Postgres will return violation error if already exists
+	return err
 }
 
 func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]WorkspaceMember, error) {
 	var members []WorkspaceMember
-	query := `SELECT * FROM workspace_members WHERE workspace_id = $1`
+	query := `
+		SELECT wm.*, u.name, u.email, u.avatar_url
+		FROM workspace_members wm
+		JOIN users u ON wm.user_id = u.id
+		WHERE wm.workspace_id = $1
+		ORDER BY wm.joined_at ASC
+	`
 	err := r.db.SelectContext(ctx, &members, query, workspaceID)
 	if err != nil {
 		return nil, err
