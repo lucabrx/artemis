@@ -1,0 +1,42 @@
+version: "3"
+
+tasks:
+  build:
+    desc: Build the API
+    cmds:
+      - go build -o bin/api ./cmd/api/main.go
+
+  run:
+    desc: Run the API
+    cmds:
+      - go run ./cmd/api/main.go
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  docker:
+    desc: Start docker containers
+    cmds:
+      - docker-compose up -d
+
+  lint:
+    desc: Run linter
+    cmds:
+      - golangci-lint run
+
+  swagger:
+    desc: Generate swagger docs
+    cmds:
+      - swag init -g cmd/api/main.go -o docs
+
+  migrate-up:
+    desc: Run migrations up
+    cmds:
+      - goose -dir migrations postgres "user=artemis password=artemis dbname=artemis sslmode=disable" up
+
+  migrate-down:
+    desc: Run migrations down
+    cmds:
+      - goose -dir migrations postgres "user=artemis password=artemis dbname=artemis sslmode=disable" down
