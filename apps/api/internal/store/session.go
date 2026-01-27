@@ -29,24 +29,43 @@ type CreateSessionParams struct {
 	ExpiresAt    time.Time
 }
 
-func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (*Session, error) {
+type SessionRepository interface {
+	CreateSession(ctx context.Context, arg CreateSessionParams) (*Session, error)
+	GetSessionByID(ctx context.Context, id any) (*Session, error)
+	GetSessionByToken(ctx context.Context, refreshToken string) (*Session, error)
+	GetSessionsByUserID(ctx context.Context, userID any) ([]Session, error)
+	DeleteSession(ctx context.Context, id any) error
+	DeleteSessionByToken(ctx context.Context, refreshToken string) error
+	DeleteSessionsByUserID(ctx context.Context, userID any) error
+	DeleteExpiredSessions(ctx context.Context) (int64, error)
+}
+
+type sessionRepository struct {
+	db DBTX
+}
+
+func NewSessionRepository(db DBTX) SessionRepository {
+	return &sessionRepository{db: db}
+}
+
+func (r *sessionRepository) CreateSession(ctx context.Context, arg CreateSessionParams) (*Session, error) {
 	session := &Session{}
 	query := `
 		INSERT INTO sessions (user_id, refresh_token, ip_address, user_agent, expires_at)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, user_id, refresh_token, ip_address, user_agent, expires_at, created_at
 	`
-	err := q.db.GetContext(ctx, session, query, arg.UserID, arg.RefreshToken, arg.IPAddress, arg.UserAgent, arg.ExpiresAt)
+	err := r.db.GetContext(ctx, session, query, arg.UserID, arg.RefreshToken, arg.IPAddress, arg.UserAgent, arg.ExpiresAt)
 	if err != nil {
 		return nil, err
 	}
 	return session, nil
 }
 
-func (q *Queries) GetSessionByID(ctx context.Context, id any) (*Session, error) {
+func (r *sessionRepository) GetSessionByID(ctx context.Context, id any) (*Session, error) {
 	var session Session
 	query := `SELECT * FROM sessions WHERE id = $1`
-	err := q.db.GetContext(ctx, &session, query, id)
+	err := r.db.GetContext(ctx, &session, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrSessionNotFound
@@ -56,10 +75,10 @@ func (q *Queries) GetSessionByID(ctx context.Context, id any) (*Session, error) 
 	return &session, nil
 }
 
-func (q *Queries) GetSessionByToken(ctx context.Context, refreshToken string) (*Session, error) {
+func (r *sessionRepository) GetSessionByToken(ctx context.Context, refreshToken string) (*Session, error) {
 	var session Session
 	query := `SELECT * FROM sessions WHERE refresh_token = $1`
-	err := q.db.GetContext(ctx, &session, query, refreshToken)
+	err := r.db.GetContext(ctx, &session, query, refreshToken)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrSessionNotFound
@@ -69,37 +88,37 @@ func (q *Queries) GetSessionByToken(ctx context.Context, refreshToken string) (*
 	return &session, nil
 }
 
-func (q *Queries) GetSessionsByUserID(ctx context.Context, userID any) ([]Session, error) {
+func (r *sessionRepository) GetSessionsByUserID(ctx context.Context, userID any) ([]Session, error) {
 	var sessions []Session
 	query := `SELECT * FROM sessions WHERE user_id = $1 ORDER BY created_at DESC`
-	err := q.db.SelectContext(ctx, &sessions, query, userID)
+	err := r.db.SelectContext(ctx, &sessions, query, userID)
 	if err != nil {
 		return nil, err
 	}
 	return sessions, nil
 }
 
-func (q *Queries) DeleteSession(ctx context.Context, id any) error {
+func (r *sessionRepository) DeleteSession(ctx context.Context, id any) error {
 	query := `DELETE FROM sessions WHERE id = $1`
-	_, err := q.db.ExecContext(ctx, query, id)
+	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }
 
-func (q *Queries) DeleteSessionByToken(ctx context.Context, refreshToken string) error {
+func (r *sessionRepository) DeleteSessionByToken(ctx context.Context, refreshToken string) error {
 	query := `DELETE FROM sessions WHERE refresh_token = $1`
-	_, err := q.db.ExecContext(ctx, query, refreshToken)
+	_, err := r.db.ExecContext(ctx, query, refreshToken)
 	return err
 }
 
-func (q *Queries) DeleteSessionsByUserID(ctx context.Context, userID any) error {
+func (r *sessionRepository) DeleteSessionsByUserID(ctx context.Context, userID any) error {
 	query := `DELETE FROM sessions WHERE user_id = $1`
-	_, err := q.db.ExecContext(ctx, query, userID)
+	_, err := r.db.ExecContext(ctx, query, userID)
 	return err
 }
 
-func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
+func (r *sessionRepository) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	query := `DELETE FROM sessions WHERE expires_at < NOW()`
-	result, err := q.db.ExecContext(ctx, query)
+	result, err := r.db.ExecContext(ctx, query)
 	if err != nil {
 		return 0, err
 	}

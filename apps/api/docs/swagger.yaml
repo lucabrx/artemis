@@ -7,6 +7,19 @@ definitions:
       message:
         type: string
     type: object
+  handler.addMemberRequest:
+    properties:
+      role:
+        enum:
+        - admin
+        - member
+        type: string
+      user_id:
+        type: string
+    required:
+    - role
+    - user_id
+    type: object
   handler.authResponse:
     properties:
       access_token:
@@ -15,6 +28,16 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/store.User'
+    type: object
+  handler.createWorkspaceRequest:
+    properties:
+      avatar_url:
+        type: string
+      name:
+        minLength: 2
+        type: string
+    required:
+    - name
     type: object
   handler.loginRequest:
     properties:
@@ -99,6 +122,45 @@ definitions:
       id:
         type: string
       name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  store.Workspace:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  store.WorkspaceMember:
+    properties:
+      joined_at:
+        type: string
+      role:
+        type: string
+      user_id:
+        type: string
+      workspace_id:
+        type: string
+    type: object
+  store.WorkspaceWithRole:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
         type: string
       updated_at:
         type: string
@@ -307,7 +369,7 @@ paths:
       tags:
       - user
   /users/profile:
-    put:
+    patch:
       consumes:
       - application/json
       description: Update allowed profile fields
@@ -410,6 +472,324 @@ paths:
       summary: Revoke session
       tags:
       - user
+  /workspaces:
+    get:
+      consumes:
+      - application/json
+      description: List all workspaces user is a member of
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/store.WorkspaceWithRole'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: List workspaces
+      tags:
+      - workspace
+    post:
+      consumes:
+      - application/json
+      description: Create a new workspace
+      parameters:
+      - description: Create Workspace Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createWorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/store.Workspace'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create workspace
+      tags:
+      - workspace
+  /workspaces/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a workspace
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete workspace
+      tags:
+      - workspace
+    get:
+      consumes:
+      - application/json
+      description: Get a specific workspace by ID
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/store.Workspace'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get workspace
+      tags:
+      - workspace
+    put:
+      consumes:
+      - application/json
+      description: Update workspace details
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update Workspace Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createWorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/store.Workspace'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update workspace
+      tags:
+      - workspace
+  /workspaces/{id}/members:
+    get:
+      consumes:
+      - application/json
+      description: List all members of the workspace
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/store.WorkspaceMember'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: List members
+      tags:
+      - workspace
+    post:
+      consumes:
+      - application/json
+      description: Add a user to the workspace
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Add Member Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.addMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: Add member
+      tags:
+      - workspace
+  /workspaces/{id}/members/{user_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a user from the workspace or leave
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User ID to remove
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: Remove member
+      tags:
+      - workspace
 securityDefinitions:
   BearerAuth:
     in: header

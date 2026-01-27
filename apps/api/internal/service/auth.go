@@ -25,13 +25,13 @@ type Auth interface {
 }
 
 type AuthService struct {
-	store       store.Repository
+	store       *store.Store
 	cache       cache.UserCache
 	tokenMaker  token.Maker
 	tokenConfig config.TokenConfig
 }
 
-func NewAuthService(store store.Repository, cache cache.UserCache, tokenMaker token.Maker, tokenConfig config.TokenConfig) *AuthService {
+func NewAuthService(store *store.Store, cache cache.UserCache, tokenMaker token.Maker, tokenConfig config.TokenConfig) *AuthService {
 	return &AuthService{
 		store:       store,
 		cache:       cache,
@@ -72,7 +72,7 @@ type TokenResult struct {
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, userAgent string) (*AuthResult, error) {
 	if input.Email != nil {
-		_, err := s.store.GetUserByEmail(ctx, *input.Email)
+		_, err := s.store.Users.GetUserByEmail(ctx, *input.Email)
 		if err == nil {
 			return nil, ErrEmailExists
 		}
@@ -87,8 +87,8 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 	}
 
 	var result *AuthResult
-	err = s.store.ExecTx(ctx, func(q store.Querier) error {
-		user, err := q.CreateUser(ctx, store.CreateUserParams{
+	err = s.store.ExecTx(ctx, func(tx *store.Store) error {
+		user, err := tx.Users.CreateUser(ctx, store.CreateUserParams{
 			Email:        input.Email,
 			PasswordHash: string(hashedPassword),
 			Name:         input.Name,
@@ -99,7 +99,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 
 		_ = s.cache.SetUser(ctx, user)
 
-		result, err = s.createAuthResult(ctx, q, user, ip, userAgent)
+		result, err = s.createAuthResult(ctx, tx, user, ip, userAgent)
 		return err
 	})
 
@@ -107,7 +107,7 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 }
 
 func (s *AuthService) Login(ctx context.Context, input LoginInput, ip, userAgent string) (*AuthResult, error) {
-	user, err := s.store.GetUserByEmail(ctx, input.Email)
+	user, err := s.store.Users.GetUserByEmail(ctx, input.Email)
 	if err != nil {
 		if errors.Is(err, store.ErrUserNotFound) {
 			return nil, ErrInvalidCredentials
@@ -122,8 +122,8 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput, ip, userAgent
 	_ = s.cache.SetUser(ctx, user)
 
 	var result *AuthResult
-	err = s.store.ExecTx(ctx, func(q store.Querier) error {
-		result, err = s.createAuthResult(ctx, q, user, ip, userAgent)
+	err = s.store.ExecTx(ctx, func(tx *store.Store) error {
+		result, err = s.createAuthResult(ctx, tx, user, ip, userAgent)
 		return err
 	})
 
@@ -136,7 +136,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 		return nil, err
 	}
 
-	session, err := s.store.GetSessionByToken(ctx, refreshToken)
+	session, err := s.store.Sessions.GetSessionByToken(ctx, refreshToken)
 	if err != nil {
 		return nil, err
 	}
@@ -146,11 +146,11 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 	}
 
 	if time.Now().After(session.ExpiresAt) {
-		_ = s.store.DeleteSession(ctx, session.ID)
+		_ = s.store.Sessions.DeleteSession(ctx, session.ID)
 		return nil, token.ErrExpiredToken
 	}
 
-	if err := s.store.DeleteSession(ctx, session.ID); err != nil {
+	if err := s.store.Sessions.DeleteSession(ctx, session.ID); err != nil {
 		return nil, err
 	}
 
@@ -164,7 +164,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 		return nil, err
 	}
 
-	_, err = s.store.CreateSession(ctx, store.CreateSessionParams{
+	_, err = s.store.Sessions.CreateSession(ctx, store.CreateSessionParams{
 		UserID:       payload.UserID,
 		RefreshToken: newRefreshToken,
 		IPAddress:    ip,
@@ -182,10 +182,10 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 }
 
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	return s.store.DeleteSessionByToken(ctx, refreshToken)
+	return s.store.Sessions.DeleteSessionByToken(ctx, refreshToken)
 }
 
-func (s *AuthService) createAuthResult(ctx context.Context, q store.Querier, user *store.User, ip, userAgent string) (*AuthResult, error) {
+func (s *AuthService) createAuthResult(ctx context.Context, tx *store.Store, user *store.User, ip, userAgent string) (*AuthResult, error) {
 	accessToken, _, err := s.tokenMaker.CreateAccessToken(user.ID)
 	if err != nil {
 		return nil, err
@@ -196,7 +196,7 @@ func (s *AuthService) createAuthResult(ctx context.Context, q store.Querier, use
 		return nil, err
 	}
 
-	_, err = q.CreateSession(ctx, store.CreateSessionParams{
+	_, err = tx.Sessions.CreateSession(ctx, store.CreateSessionParams{
 		UserID:       user.ID,
 		RefreshToken: refreshToken,
 		IPAddress:    ip,

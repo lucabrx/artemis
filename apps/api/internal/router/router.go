@@ -17,7 +17,7 @@ import (
 )
 
 type Config struct {
-	Store       store.Repository
+	Store       *store.Store
 	Cache       *cache.Cache
 	Storage     *storage.MinIO
 	TokenMaker  token.Maker
@@ -35,9 +35,11 @@ func New(cfg Config) *gin.Engine {
 
 	authService := service.NewAuthService(cfg.Store, cfg.Cache, cfg.TokenMaker, cfg.TokenConfig)
 	userService := service.NewUserService(cfg.Store, cfg.Cache, cfg.Storage)
+	workspaceService := service.NewWorkspaceService(cfg.Store)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)
+	workspaceHandler := handler.NewWorkspaceHandler(workspaceService)
 
 	router.GET("/health", handler.Health)
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -46,6 +48,7 @@ func New(cfg Config) *gin.Engine {
 	{
 		RegisterAuthRoutes(api, authHandler)
 		RegisterUserRoutes(api, userHandler, cfg.TokenMaker)
+		RegisterWorkspaceRoutes(api, workspaceHandler, cfg.TokenMaker)
 	}
 
 	return router

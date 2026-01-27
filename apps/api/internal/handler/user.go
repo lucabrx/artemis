@@ -26,8 +26,6 @@ type updateProfileRequest struct {
 	AvatarURL *string `json:"avatar_url" binding:"omitempty,url"`
 }
 
-// Removed userResponse and sessionResponse structs as we use store.User and store.Session directly
-
 // Me godoc
 // @Summary      Get current user
 // @Description  Get the currently logged-in user's profile
@@ -72,7 +70,7 @@ func (h *UserHandler) Me(c *gin.Context) {
 // @Failure      401  {object}  apperr.AppError
 // @Failure      409  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
-// @Router       /users/profile [put]
+// @Router       /users/profile [patch]
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	userId, err := getUserId(c)
 	if err != nil {
@@ -224,5 +222,3 @@ func getUserId(c *gin.Context) (uuid.UUID, error) {
 	}
 	return tokenPayload.UserID, nil
 }
-
-// Removed toUserResponse function

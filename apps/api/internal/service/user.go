@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lukabrkovic/artemis/internal/cache"
 	"github.com/lukabrkovic/artemis/internal/store"
+	pkgstorage "github.com/lukabrkovic/artemis/pkg/storage"
 )
 
 type User interface {
@@ -23,12 +24,12 @@ type FileStorage interface {
 }
 
 type UserService struct {
-	store   store.Repository
+	store   *store.Store
 	cache   cache.UserCache
-	storage FileStorage
+	storage pkgstorage.Provider
 }
 
-func NewUserService(store store.Repository, cache cache.UserCache, storage FileStorage) *UserService {
+func NewUserService(store *store.Store, cache cache.UserCache, storage pkgstorage.Provider) *UserService {
 	return &UserService{
 		store:   store,
 		cache:   cache,
@@ -39,12 +40,12 @@ func NewUserService(store store.Repository, cache cache.UserCache, storage FileS
 var _ User = (*UserService)(nil)
 
 func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*store.User, error) {
-	cached, err := s.cache.GetUser(ctx, id)
-	if err == nil && cached != nil {
-		return cached, nil
+	user, err := s.cache.GetUser(ctx, id)
+	if err == nil {
+		return user, nil
 	}
 
-	user, err := s.store.GetUserByID(ctx, id)
+	user, err = s.store.Users.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -55,13 +56,13 @@ func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*store.User, e
 }
 
 func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, input UpdateProfileInput) (*store.User, error) {
-	user, err := s.store.GetUserByID(ctx, userID)
+	current, err := s.store.Users.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	if input.Email != nil && (user.Email == nil || *input.Email != *user.Email) {
-		_, err := s.store.GetUserByEmail(ctx, *input.Email)
+	if input.Email != nil && (current.Email == nil || *input.Email != *current.Email) {
+		_, err := s.store.Users.GetUserByEmail(ctx, *input.Email)
 		if err == nil {
 			return nil, ErrEmailExists
 		}
@@ -70,12 +71,12 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, input
 		}
 	}
 
-	updatedUser, err := s.store.UpdateUser(ctx, store.UpdateUserParams{
+	updatedUser, err := s.store.Users.UpdateUser(ctx, store.UpdateUserParams{
 		ID:           userID,
 		Email:        input.Email,
 		Name:         input.Name,
 		AvatarURL:    input.AvatarURL,
-		PasswordHash: user.PasswordHash,
+		PasswordHash: current.PasswordHash,
 	})
 	if err != nil {
 		return nil, err
@@ -87,11 +88,11 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, input
 }
 
 func (s *UserService) GetSessions(ctx context.Context, userID uuid.UUID) ([]store.Session, error) {
-	return s.store.GetSessionsByUserID(ctx, userID)
+	return s.store.Sessions.GetSessionsByUserID(ctx, userID)
 }
 
 func (s *UserService) RevokeSession(ctx context.Context, userID, sessionID uuid.UUID) error {
-	session, err := s.store.GetSessionByID(ctx, sessionID)
+	session, err := s.store.Sessions.GetSessionByID(ctx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -100,11 +101,11 @@ func (s *UserService) RevokeSession(ctx context.Context, userID, sessionID uuid.
 		return errors.New("unauthorized")
 	}
 
-	return s.store.DeleteSession(ctx, sessionID)
+	return s.store.Sessions.DeleteSession(ctx, sessionID)
 }
 
 func (s *UserService) UploadAvatar(ctx context.Context, userID uuid.UUID, reader io.Reader, size int64, contentType string) (string, error) {
-	user, err := s.store.GetUserByID(ctx, userID)
+	user, err := s.store.Users.GetUserByID(ctx, userID)
 	if err != nil {
 		return "", err
 	}
@@ -114,8 +115,8 @@ func (s *UserService) UploadAvatar(ctx context.Context, userID uuid.UUID, reader
 		return "", err
 	}
 
-	_, err = s.store.UpdateUser(ctx, store.UpdateUserParams{
-		ID:           userID,
+	_, err = s.store.Users.UpdateUser(ctx, store.UpdateUserParams{
+		ID:           user.ID,
 		Email:        user.Email,
 		Name:         user.Name,
 		AvatarURL:    &avatarURL,

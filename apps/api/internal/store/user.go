@@ -28,46 +28,6 @@ type CreateUserParams struct {
 	AvatarURL    *string
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (*User, error) {
-	user := &User{}
-	query := `
-		INSERT INTO users (email, password_hash, name, avatar_url)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, email, password_hash, name, avatar_url, created_at, updated_at
-	`
-	err := q.db.GetContext(ctx, user, query, arg.Email, arg.PasswordHash, arg.Name, arg.AvatarURL)
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
-func (q *Queries) GetUserByID(ctx context.Context, id any) (*User, error) {
-	var user User
-	query := `SELECT * FROM users WHERE id = $1`
-	err := q.db.GetContext(ctx, &user, query, id)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
-	}
-	return &user, nil
-}
-
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (*User, error) {
-	var user User
-	query := `SELECT * FROM users WHERE email = $1`
-	err := q.db.GetContext(ctx, &user, query, email)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, err
-	}
-	return &user, nil
-}
-
 type UpdateUserParams struct {
 	ID           uuid.UUID
 	Email        *string
@@ -76,15 +36,40 @@ type UpdateUserParams struct {
 	PasswordHash string
 }
 
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (*User, error) {
-	var user User
+type UserRepository interface {
+	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
+	GetUserByID(ctx context.Context, id any) (*User, error)
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	UpdateUser(ctx context.Context, arg UpdateUserParams) (*User, error)
+	DeleteUser(ctx context.Context, id any) error
+}
+
+type userRepository struct {
+	db DBTX
+}
+
+func NewUserRepository(db DBTX) UserRepository {
+	return &userRepository{db: db}
+}
+
+func (r *userRepository) CreateUser(ctx context.Context, arg CreateUserParams) (*User, error) {
+	user := &User{}
 	query := `
-		UPDATE users 
-		SET email = $1, name = $2, avatar_url = $3, password_hash = $4, updated_at = NOW()
-		WHERE id = $5
+		INSERT INTO users (email, password_hash, name, avatar_url)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, email, password_hash, name, avatar_url, created_at, updated_at
 	`
-	err := q.db.GetContext(ctx, &user, query, arg.Email, arg.Name, arg.AvatarURL, arg.PasswordHash, arg.ID)
+	err := r.db.GetContext(ctx, user, query, arg.Email, arg.PasswordHash, arg.Name, arg.AvatarURL)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (r *userRepository) GetUserByID(ctx context.Context, id any) (*User, error) {
+	var user User
+	query := `SELECT * FROM users WHERE id = $1`
+	err := r.db.GetContext(ctx, &user, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
@@ -94,8 +79,39 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (*User, 
 	return &user, nil
 }
 
-func (q *Queries) DeleteUser(ctx context.Context, id any) error {
+func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	var user User
+	query := `SELECT * FROM users WHERE email = $1`
+	err := r.db.GetContext(ctx, &user, query, email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) UpdateUser(ctx context.Context, arg UpdateUserParams) (*User, error) {
+	var user User
+	query := `
+		UPDATE users 
+		SET email = $1, name = $2, avatar_url = $3, password_hash = $4, updated_at = NOW()
+		WHERE id = $5
+		RETURNING id, email, password_hash, name, avatar_url, created_at, updated_at
+	`
+	err := r.db.GetContext(ctx, &user, query, arg.Email, arg.Name, arg.AvatarURL, arg.PasswordHash, arg.ID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *userRepository) DeleteUser(ctx context.Context, id any) error {
 	query := `DELETE FROM users WHERE id = $1`
-	_, err := q.db.ExecContext(ctx, query, id)
+	_, err := r.db.ExecContext(ctx, query, id)
 	return err
 }

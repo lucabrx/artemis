@@ -23,12 +23,16 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	DBName          string
+	SSLMode         string
+	MaxConns        int32
+	MinConns        int32
+	MaxConnLifetime time.Duration
+	MaxConnIdleTime time.Duration
 }
 
 func (c DatabaseConfig) DSN() string {
@@ -76,6 +80,10 @@ func Load() (*Config, error) {
 	viper.SetDefault("DB_PASSWORD", "artemis")
 	viper.SetDefault("DB_NAME", "artemis")
 	viper.SetDefault("DB_SSLMODE", "disable")
+	viper.SetDefault("DB_MAX_CONNS", 25)
+	viper.SetDefault("DB_MIN_CONNS", 5)
+	viper.SetDefault("DB_MAX_CONN_LIFETIME", "1h")
+	viper.SetDefault("DB_MAX_CONN_IDLE_TIME", "30m")
 	viper.SetDefault("REDIS_HOST", "localhost")
 	viper.SetDefault("REDIS_PORT", "6379")
 	viper.SetDefault("REDIS_PASSWORD", "")
@@ -101,18 +109,32 @@ func Load() (*Config, error) {
 		refreshDuration = 7 * 24 * time.Hour
 	}
 
+	dbMaxConnLifetime, err := time.ParseDuration(viper.GetString("DB_MAX_CONN_LIFETIME"))
+	if err != nil {
+		dbMaxConnLifetime = time.Hour
+	}
+
+	dbMaxConnIdleTime, err := time.ParseDuration(viper.GetString("DB_MAX_CONN_IDLE_TIME"))
+	if err != nil {
+		dbMaxConnIdleTime = 30 * time.Minute
+	}
+
 	cfg := &Config{
 		Server: ServerConfig{
 			Port:        viper.GetString("SERVER_PORT"),
 			Environment: viper.GetString("SERVER_ENVIRONMENT"),
 		},
 		Database: DatabaseConfig{
-			Host:     viper.GetString("DB_HOST"),
-			Port:     viper.GetString("DB_PORT"),
-			User:     viper.GetString("DB_USER"),
-			Password: viper.GetString("DB_PASSWORD"),
-			DBName:   viper.GetString("DB_NAME"),
-			SSLMode:  viper.GetString("DB_SSLMODE"),
+			Host:            viper.GetString("DB_HOST"),
+			Port:            viper.GetString("DB_PORT"),
+			User:            viper.GetString("DB_USER"),
+			Password:        viper.GetString("DB_PASSWORD"),
+			DBName:          viper.GetString("DB_NAME"),
+			SSLMode:         viper.GetString("DB_SSLMODE"),
+			MaxConns:        viper.GetInt32("DB_MAX_CONNS"),
+			MinConns:        viper.GetInt32("DB_MIN_CONNS"),
+			MaxConnLifetime: dbMaxConnLifetime,
+			MaxConnIdleTime: dbMaxConnIdleTime,
 		},
 		Redis: RedisConfig{
 			Host:     viper.GetString("REDIS_HOST"),
@@ -148,6 +170,15 @@ func (c *Config) Validate() error {
 		missing = append(missing, "TOKEN_SYMMETRIC_KEY")
 	} else if len(c.Token.SymmetricKey) != 32 {
 		return errors.New("TOKEN_SYMMETRIC_KEY must be exactly 32 bytes")
+	}
+
+	if c.Server.Environment == "production" {
+		if c.Token.SymmetricKey == "12345678901234567890123456789012" {
+			return errors.New("TOKEN_SYMMETRIC_KEY must be changed in production")
+		}
+		if c.Database.Password == "artemis" {
+			return errors.New("DB_PASSWORD must be changed in production")
+		}
 	}
 
 	if c.Database.Host == "" {

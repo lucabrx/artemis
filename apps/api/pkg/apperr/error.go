@@ -18,6 +18,10 @@ func (e *AppError) Error() string {
 	return e.Message
 }
 
+func (e *AppError) Unwrap() error {
+	return e.Cause
+}
+
 func New(code int, message string) *AppError {
 	return &AppError{
 		Code:    code,

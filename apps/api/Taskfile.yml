@@ -34,9 +34,9 @@ tasks:
   migrate-up:
     desc: Run migrations up
     cmds:
-      - goose -dir migrations postgres "user=artemis password=artemis dbname=artemis sslmode=disable" up
+      - goose -dir migrations postgres "host=localhost user=artemis password=artemis dbname=artemis sslmode=disable" up
 
   migrate-down:
     desc: Run migrations down
     cmds:
-      - goose -dir migrations postgres "user=artemis password=artemis dbname=artemis sslmode=disable" down
+      - goose -dir migrations postgres "host=localhost user=artemis password=artemis dbname=artemis sslmode=disable" down
