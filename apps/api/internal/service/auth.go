@@ -60,14 +60,18 @@ type UpdateProfileInput struct {
 }
 
 type AuthResult struct {
-	User         *store.User
-	AccessToken  string
-	RefreshToken string
+	User                  *store.User
+	AccessToken           string
+	RefreshToken          string
+	AccessTokenExpiresAt  time.Time
+	RefreshTokenExpiresAt time.Time
 }
 
 type TokenResult struct {
-	AccessToken  string
-	RefreshToken string
+	AccessToken           string
+	RefreshToken          string
+	AccessTokenExpiresAt  time.Time
+	RefreshTokenExpiresAt time.Time
 }
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, userAgent string) (*AuthResult, error) {
@@ -154,7 +158,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 		return nil, err
 	}
 
-	accessToken, _, err := s.tokenMaker.CreateAccessToken(payload.UserID)
+	accessToken, accessPayload, err := s.tokenMaker.CreateAccessToken(payload.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +180,10 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent s
 	}
 
 	return &TokenResult{
-		AccessToken:  accessToken,
-		RefreshToken: newRefreshToken,
+		AccessToken:           accessToken,
+		RefreshToken:          newRefreshToken,
+		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
+		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
 	}, nil
 }
 
@@ -186,7 +192,7 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 }
 
 func (s *AuthService) createAuthResult(ctx context.Context, tx *store.Store, user *store.User, ip, userAgent string) (*AuthResult, error) {
-	accessToken, _, err := s.tokenMaker.CreateAccessToken(user.ID)
+	accessToken, accessPayload, err := s.tokenMaker.CreateAccessToken(user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -208,8 +214,10 @@ func (s *AuthService) createAuthResult(ctx context.Context, tx *store.Store, use
 	}
 
 	return &AuthResult{
-		User:         user,
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
+		User:                  user,
+		AccessToken:           accessToken,
+		RefreshToken:          refreshToken,
+		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
+		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
 	}, nil
 }

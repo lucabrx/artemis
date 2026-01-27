@@ -39,14 +39,18 @@ type logoutRequest struct {
 }
 
 type authResponse struct {
-	User         *store.User `json:"user"`
-	AccessToken  string      `json:"access_token"`
-	RefreshToken string      `json:"refresh_token"`
+	User                  *store.User `json:"user"`
+	AccessToken           string      `json:"access_token"`
+	RefreshToken          string      `json:"refresh_token"`
+	AccessTokenExpiresAt  int64       `json:"access_token_expires_at"`
+	RefreshTokenExpiresAt int64       `json:"refresh_token_expires_at"`
 }
 
 type tokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken           string `json:"access_token"`
+	RefreshToken          string `json:"refresh_token"`
+	AccessTokenExpiresAt  int64  `json:"access_token_expires_at"`
+	RefreshTokenExpiresAt int64  `json:"refresh_token_expires_at"`
 }
 
 // Register godoc
@@ -152,8 +156,10 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, tokenResponse{
-		AccessToken:  result.AccessToken,
-		RefreshToken: result.RefreshToken,
+		AccessToken:           result.AccessToken,
+		RefreshToken:          result.RefreshToken,
+		AccessTokenExpiresAt:  result.AccessTokenExpiresAt.Unix(),
+		RefreshTokenExpiresAt: result.RefreshTokenExpiresAt.Unix(),
 	})
 }
 
@@ -185,8 +191,10 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 func toAuthResponse(result *service.AuthResult) authResponse {
 	return authResponse{
-		User:         result.User,
-		AccessToken:  result.AccessToken,
-		RefreshToken: result.RefreshToken,
+		User:                  result.User,
+		AccessToken:           result.AccessToken,
+		RefreshToken:          result.RefreshToken,
+		AccessTokenExpiresAt:  result.AccessTokenExpiresAt.Unix(),
+		RefreshTokenExpiresAt: result.RefreshTokenExpiresAt.Unix(),
 	}
 }
