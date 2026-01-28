@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func Logger(logger zerolog.Logger) gin.HandlerFunc {
+func Logger(baseLogger zerolog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
@@ -25,6 +25,11 @@ func Logger(logger zerolog.Logger) gin.HandlerFunc {
 
 		if raw != "" {
 			path = path + "?" + raw
+		}
+
+		logger := GetLogger(c)
+		if logger.GetLevel() == zerolog.Disabled {
+			logger = baseLogger
 		}
 
 		requestID, _ := c.Get(RequestIDKey)

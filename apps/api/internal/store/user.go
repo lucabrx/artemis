@@ -38,10 +38,10 @@ type UpdateUserParams struct {
 
 type UserRepository interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (*User, error)
-	GetUserByID(ctx context.Context, id any) (*User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (*User, error)
-	DeleteUser(ctx context.Context, id any) error
+	DeleteUser(ctx context.Context, id uuid.UUID) error
 }
 
 type userRepository struct {
@@ -66,7 +66,7 @@ func (r *userRepository) CreateUser(ctx context.Context, arg CreateUserParams) (
 	return user, nil
 }
 
-func (r *userRepository) GetUserByID(ctx context.Context, id any) (*User, error) {
+func (r *userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var user User
 	query := `SELECT * FROM users WHERE id = $1`
 	err := r.db.GetContext(ctx, &user, query, id)
@@ -110,7 +110,7 @@ func (r *userRepository) UpdateUser(ctx context.Context, arg UpdateUserParams) (
 	return &user, nil
 }
 
-func (r *userRepository) DeleteUser(ctx context.Context, id any) error {
+func (r *userRepository) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM users WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err

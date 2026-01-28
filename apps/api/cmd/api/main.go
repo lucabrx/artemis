@@ -62,7 +62,7 @@ func main() {
 	}
 
 	st := store.New(db)
-	userCache := cache.New(keydbClient, 15*time.Minute)
+	userCache := cache.New(keydbClient, 15*time.Minute, log)
 
 	r := router.New(router.Config{
 		Store:       st,

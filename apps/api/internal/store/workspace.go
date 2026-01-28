@@ -49,11 +49,12 @@ type WorkspaceRepository interface {
 	UpdateWorkspace(ctx context.Context, id uuid.UUID, name string) (*Workspace, error)
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	AddWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID, role string) error
-	GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]WorkspaceMember, error)
+	GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID, pagination PaginationParams) ([]WorkspaceMember, error)
 	RemoveWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID) error
-	GetUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]WorkspaceWithRole, error)
+	GetUserWorkspaces(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]WorkspaceWithRole, int64, error)
 	GetWorkspaceMemberRole(ctx context.Context, workspaceID, userID uuid.UUID) (string, error)
 	UpdateWorkspaceAvatar(ctx context.Context, id uuid.UUID, avatarURL string) (*Workspace, error)
+	CountUserWorkspaces(ctx context.Context, userID uuid.UUID) (int64, error)
 }
 
 type workspaceRepository struct {
@@ -142,7 +143,7 @@ func (r *workspaceRepository) AddWorkspaceMember(ctx context.Context, workspaceI
 	return err
 }
 
-func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]WorkspaceMember, error) {
+func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID, pagination PaginationParams) ([]WorkspaceMember, error) {
 	var members []WorkspaceMember
 	query := `
 		SELECT wm.*, u.name, u.email, u.avatar_url
@@ -150,8 +151,9 @@ func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspace
 		JOIN users u ON wm.user_id = u.id
 		WHERE wm.workspace_id = $1
 		ORDER BY wm.joined_at ASC
+		LIMIT $2 OFFSET $3
 	`
-	err := r.db.SelectContext(ctx, &members, query, workspaceID)
+	err := r.db.SelectContext(ctx, &members, query, workspaceID, pagination.Limit, pagination.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +176,7 @@ func (r *workspaceRepository) RemoveWorkspaceMember(ctx context.Context, workspa
 	return nil
 }
 
-func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]WorkspaceWithRole, error) {
+func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]WorkspaceWithRole, int64, error) {
 	var workspaces []WorkspaceWithRole
 	query := `
 		SELECT w.*, wm.role
@@ -182,12 +184,28 @@ func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid
 		JOIN workspace_members wm ON w.id = wm.workspace_id
 		WHERE wm.user_id = $1
 		ORDER BY w.created_at DESC
+		LIMIT $2 OFFSET $3
 	`
-	err := r.db.SelectContext(ctx, &workspaces, query, userID)
+	err := r.db.SelectContext(ctx, &workspaces, query, userID, pagination.Limit, pagination.Offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return workspaces, nil
+
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM workspace_members WHERE user_id = $1`
+	err = r.db.GetContext(ctx, &total, countQuery, userID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return workspaces, total, nil
+}
+
+func (r *workspaceRepository) CountUserWorkspaces(ctx context.Context, userID uuid.UUID) (int64, error) {
+	var count int64
+	query := `SELECT COUNT(*) FROM workspace_members WHERE user_id = $1`
+	err := r.db.GetContext(ctx, &count, query, userID)
+	return count, err
 }
 
 func (r *workspaceRepository) GetWorkspaceMemberRole(ctx context.Context, workspaceID, userID uuid.UUID) (string, error) {

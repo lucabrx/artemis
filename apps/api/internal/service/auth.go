@@ -75,6 +75,10 @@ type TokenResult struct {
 }
 
 func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, userAgent string) (*AuthResult, error) {
+	if err := store.CheckContext(ctx); err != nil {
+		return nil, err
+	}
+
 	if input.Email != nil {
 		_, err := s.store.Users.GetUserByEmail(ctx, *input.Email)
 		if err == nil {
@@ -83,6 +87,10 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 		if !errors.Is(err, store.ErrUserNotFound) {
 			return nil, err
 		}
+	}
+
+	if err := store.CheckContext(ctx); err != nil {
+		return nil, err
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -101,7 +109,8 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 			return err
 		}
 
-		_ = s.cache.SetUser(ctx, user)
+		if cacheErr := s.cache.SetUser(ctx, user); cacheErr != nil {
+		}
 
 		result, err = s.createAuthResult(ctx, tx, user, ip, userAgent)
 		return err
@@ -111,6 +120,10 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 }
 
 func (s *AuthService) Login(ctx context.Context, input LoginInput, ip, userAgent string) (*AuthResult, error) {
+	if err := store.CheckContext(ctx); err != nil {
+		return nil, err
+	}
+
 	user, err := s.store.Users.GetUserByEmail(ctx, input.Email)
 	if err != nil {
 		if errors.Is(err, store.ErrUserNotFound) {
@@ -123,7 +136,8 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput, ip, userAgent
 		return nil, ErrInvalidCredentials
 	}
 
-	_ = s.cache.SetUser(ctx, user)
+	if cacheErr := s.cache.SetUser(ctx, user); cacheErr != nil {
+	}
 
 	var result *AuthResult
 	err = s.store.ExecTx(ctx, func(tx *store.Store) error {
@@ -135,6 +149,10 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput, ip, userAgent
 }
 
 func (s *AuthService) Refresh(ctx context.Context, refreshToken, ip, userAgent string) (*TokenResult, error) {
+	if err := store.CheckContext(ctx); err != nil {
+		return nil, err
+	}
+
 	payload, err := s.tokenMaker.VerifyRefreshToken(refreshToken)
 	if err != nil {
 		return nil, err

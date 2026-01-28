@@ -125,13 +125,18 @@ func (m *MinIO) Delete(ctx context.Context, bucketType BucketType, objectName st
 	return m.client.RemoveObject(ctx, m.bucket(bucketType), objectName, minio.RemoveObjectOptions{})
 }
 
-func (m *MinIO) UploadAvatar(ctx context.Context, userID string, reader io.Reader, size int64, contentType string) (string, error) {
-	objectName := fmt.Sprintf("avatars/%s", userID)
+func (m *MinIO) UploadAvatar(ctx context.Context, workspaceID string, reader io.Reader, size int64, contentType string) (string, error) {
+	objectName := fmt.Sprintf("avatars/%s", workspaceID)
 	_, err := m.Upload(ctx, BucketPublic, objectName, reader, size, contentType)
 	if err != nil {
 		return "", err
 	}
 	return m.GetPublicURL(objectName), nil
+}
+
+func (m *MinIO) DeleteAvatar(ctx context.Context, workspaceID string) error {
+	objectName := fmt.Sprintf("avatars/%s", workspaceID)
+	return m.Delete(ctx, BucketPublic, objectName)
 }
 
 func (m *MinIO) UploadProjectFile(ctx context.Context, projectID, fileName string, reader io.Reader, size int64, contentType string) (string, error) {

@@ -28,10 +28,11 @@ type Config struct {
 func New(cfg Config) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(middleware.RequestID())
+	router.Use(middleware.RequestID(cfg.Logger))
 	router.Use(middleware.Logger(cfg.Logger))
 	router.Use(middleware.ErrorHandler(cfg.Logger))
 	router.Use(middleware.CORS())
+	router.Use(middleware.RateLimiterByIP(1000, 60))
 
 	authService := service.NewAuthService(cfg.Store, cfg.Cache, cfg.TokenMaker, cfg.TokenConfig)
 	userService := service.NewUserService(cfg.Store, cfg.Cache, cfg.Storage)

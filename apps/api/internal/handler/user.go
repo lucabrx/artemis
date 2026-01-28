@@ -150,12 +150,14 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 // GetSessions godoc
 // @Summary      List sessions
-// @Description  List all active sessions for the user
+// @Description  List all active sessions for the user with pagination
 // @Tags         user
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {array}   store.Session
+// @Param        limit   query     int     false  "Limit (default 20, max 100)"
+// @Param        offset  query     int     false  "Offset (default 0)"
+// @Success      200  {object}  store.PaginatedResponse[store.Session]
 // @Failure      401  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
 // @Router       /users/sessions [get]
@@ -166,7 +168,12 @@ func (h *UserHandler) GetSessions(c *gin.Context) {
 		return
 	}
 
-	sessions, err := h.service.GetSessions(c.Request.Context(), userId)
+	pagination := store.DefaultPagination()
+	if err := c.ShouldBindQuery(&pagination); err == nil {
+		pagination.Normalize()
+	}
+
+	sessions, err := h.service.GetSessions(c.Request.Context(), userId, pagination)
 	if err != nil {
 		c.Error(apperr.Internal(err))
 		return

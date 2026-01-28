@@ -14,7 +14,7 @@ import (
 type User interface {
 	GetUser(ctx context.Context, id uuid.UUID) (*store.User, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, input UpdateProfileInput) (*store.User, error)
-	GetSessions(ctx context.Context, userID uuid.UUID) ([]store.Session, error)
+	GetSessions(ctx context.Context, userID uuid.UUID, pagination store.PaginationParams) (*store.PaginatedResponse[store.Session], error)
 	RevokeSession(ctx context.Context, userID, sessionID uuid.UUID) error
 	UploadAvatar(ctx context.Context, userID uuid.UUID, reader io.Reader, size int64, contentType string) (string, error)
 }
@@ -50,7 +50,8 @@ func (s *UserService) GetUser(ctx context.Context, id uuid.UUID) (*store.User, e
 		return nil, err
 	}
 
-	_ = s.cache.SetUser(ctx, user)
+	if cacheErr := s.cache.SetUser(ctx, user); cacheErr != nil {
+	}
 
 	return user, nil
 }
@@ -92,13 +93,26 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, input
 		return nil, err
 	}
 
-	_ = s.cache.SetUser(ctx, updatedUser)
+	if cacheErr := s.cache.SetUser(ctx, updatedUser); cacheErr != nil {
+	}
 
 	return updatedUser, nil
 }
 
-func (s *UserService) GetSessions(ctx context.Context, userID uuid.UUID) ([]store.Session, error) {
-	return s.store.Sessions.GetSessionsByUserID(ctx, userID)
+func (s *UserService) GetSessions(ctx context.Context, userID uuid.UUID, pagination store.PaginationParams) (*store.PaginatedResponse[store.Session], error) {
+	sessions, total, err := s.store.Sessions.GetSessionsByUserID(ctx, userID, pagination)
+	if err != nil {
+		return nil, err
+	}
+
+	return &store.PaginatedResponse[store.Session]{
+		Data: sessions,
+		Pagination: store.PaginationInfo{
+			Limit:  pagination.Limit,
+			Offset: pagination.Offset,
+			Total:  total,
+		},
+	}, nil
 }
 
 func (s *UserService) RevokeSession(ctx context.Context, userID, sessionID uuid.UUID) error {
@@ -137,7 +151,8 @@ func (s *UserService) UploadAvatar(ctx context.Context, userID uuid.UUID, reader
 	}
 
 	user.AvatarURL = &avatarURL
-	_ = s.cache.SetUser(ctx, user)
+	if cacheErr := s.cache.SetUser(ctx, user); cacheErr != nil {
+	}
 
 	return avatarURL, nil
 }

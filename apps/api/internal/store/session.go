@@ -31,13 +31,14 @@ type CreateSessionParams struct {
 
 type SessionRepository interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (*Session, error)
-	GetSessionByID(ctx context.Context, id any) (*Session, error)
+	GetSessionByID(ctx context.Context, id uuid.UUID) (*Session, error)
 	GetSessionByToken(ctx context.Context, refreshToken string) (*Session, error)
-	GetSessionsByUserID(ctx context.Context, userID any) ([]Session, error)
-	DeleteSession(ctx context.Context, id any) error
+	GetSessionsByUserID(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]Session, int64, error)
+	DeleteSession(ctx context.Context, id uuid.UUID) error
 	DeleteSessionByToken(ctx context.Context, refreshToken string) error
-	DeleteSessionsByUserID(ctx context.Context, userID any) error
+	DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
+	CountSessionsByUserID(ctx context.Context, userID uuid.UUID) (int64, error)
 }
 
 type sessionRepository struct {
@@ -62,7 +63,7 @@ func (r *sessionRepository) CreateSession(ctx context.Context, arg CreateSession
 	return session, nil
 }
 
-func (r *sessionRepository) GetSessionByID(ctx context.Context, id any) (*Session, error) {
+func (r *sessionRepository) GetSessionByID(ctx context.Context, id uuid.UUID) (*Session, error) {
 	var session Session
 	query := `SELECT * FROM sessions WHERE id = $1`
 	err := r.db.GetContext(ctx, &session, query, id)
@@ -88,17 +89,32 @@ func (r *sessionRepository) GetSessionByToken(ctx context.Context, refreshToken 
 	return &session, nil
 }
 
-func (r *sessionRepository) GetSessionsByUserID(ctx context.Context, userID any) ([]Session, error) {
+func (r *sessionRepository) GetSessionsByUserID(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]Session, int64, error) {
 	var sessions []Session
-	query := `SELECT * FROM sessions WHERE user_id = $1 ORDER BY created_at DESC`
-	err := r.db.SelectContext(ctx, &sessions, query, userID)
+	query := `SELECT * FROM sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+	err := r.db.SelectContext(ctx, &sessions, query, userID, pagination.Limit, pagination.Offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return sessions, nil
+
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM sessions WHERE user_id = $1`
+	err = r.db.GetContext(ctx, &total, countQuery, userID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return sessions, total, nil
 }
 
-func (r *sessionRepository) DeleteSession(ctx context.Context, id any) error {
+func (r *sessionRepository) CountSessionsByUserID(ctx context.Context, userID uuid.UUID) (int64, error) {
+	var count int64
+	query := `SELECT COUNT(*) FROM sessions WHERE user_id = $1`
+	err := r.db.GetContext(ctx, &count, query, userID)
+	return count, err
+}
+
+func (r *sessionRepository) DeleteSession(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM sessions WHERE id = $1`
 	_, err := r.db.ExecContext(ctx, query, id)
 	return err
@@ -110,7 +126,7 @@ func (r *sessionRepository) DeleteSessionByToken(ctx context.Context, refreshTok
 	return err
 }
 
-func (r *sessionRepository) DeleteSessionsByUserID(ctx context.Context, userID any) error {
+func (r *sessionRepository) DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error {
 	query := `DELETE FROM sessions WHERE user_id = $1`
 	_, err := r.db.ExecContext(ctx, query, userID)
 	return err

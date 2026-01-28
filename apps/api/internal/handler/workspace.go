@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/lukabrkovic/artemis/internal/service"
+	"github.com/lukabrkovic/artemis/internal/store"
 	"github.com/lukabrkovic/artemis/pkg/apperr"
 )
 
@@ -68,12 +69,14 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 
 // ListWorkspaces godoc
 // @Summary      List workspaces
-// @Description  List all workspaces user is a member of
+// @Description  List all workspaces user is a member of with pagination
 // @Tags         workspace
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Success      200  {array}   store.WorkspaceWithRole
+// @Param        limit   query     int     false  "Limit (default 20, max 100)"
+// @Param        offset  query     int     false  "Offset (default 0)"
+// @Success      200  {object}  store.PaginatedResponse[store.WorkspaceWithRole]
 // @Failure      401  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
 // @Router       /workspaces [get]
@@ -84,7 +87,12 @@ func (h *WorkspaceHandler) ListWorkspaces(c *gin.Context) {
 		return
 	}
 
-	workspaces, err := h.service.GetMyWorkspaces(c.Request.Context(), userId)
+	pagination := store.DefaultPagination()
+	if err := c.ShouldBindQuery(&pagination); err == nil {
+		pagination.Normalize()
+	}
+
+	workspaces, err := h.service.GetMyWorkspaces(c.Request.Context(), userId, pagination)
 	if err != nil {
 		c.Error(apperr.Internal(err))
 		return
@@ -333,13 +341,15 @@ func (h *WorkspaceHandler) RemoveMember(c *gin.Context) {
 
 // ListMembers godoc
 // @Summary      List members
-// @Description  List all members of the workspace
+// @Description  List all members of the workspace with pagination
 // @Tags         workspace
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        id   path      string  true  "Workspace ID"
-// @Success      200  {array}   store.WorkspaceMember
+// @Param        id      path      string  true  "Workspace ID"
+// @Param        limit   query     int     false  "Limit (default 20, max 100)"
+// @Param        offset  query     int     false  "Offset (default 0)"
+// @Success      200  {object}  store.PaginatedResponse[store.WorkspaceMember]
 // @Failure      401  {object}  apperr.AppError
 // @Failure      403  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
@@ -357,7 +367,12 @@ func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
 		return
 	}
 
-	members, err := h.service.GetMembers(c.Request.Context(), userId, workspaceId)
+	pagination := store.DefaultPagination()
+	if err := c.ShouldBindQuery(&pagination); err == nil {
+		pagination.Normalize()
+	}
+
+	members, err := h.service.GetMembers(c.Request.Context(), userId, workspaceId, pagination)
 	if err != nil {
 		if errors.Is(err, service.ErrForbidden) {
 			c.Error(apperr.Forbidden("access denied"))
@@ -367,7 +382,14 @@ func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, members)
+	c.JSON(http.StatusOK, store.PaginatedResponse[store.WorkspaceMember]{
+		Data: members,
+		Pagination: store.PaginationInfo{
+			Limit:  pagination.Limit,
+			Offset: pagination.Offset,
+			Total:  int64(len(members)), // Note: total would need separate count query
+		},
+	})
 }
 
 // UploadAvatar godoc

@@ -12,6 +12,7 @@ type Provider interface {
 	GetPresignedURL(ctx context.Context, objectName string, expiry time.Duration) (string, error)
 	Delete(ctx context.Context, bucketType BucketType, objectName string) error
 	UploadAvatar(ctx context.Context, userID string, reader io.Reader, size int64, contentType string) (string, error)
+	DeleteAvatar(ctx context.Context, workspaceID string) error
 	UploadProjectFile(ctx context.Context, projectID, fileName string, reader io.Reader, size int64, contentType string) (string, error)
 	GetProjectFileURL(ctx context.Context, projectID, fileName string, expiry time.Duration) (string, error)
 }
