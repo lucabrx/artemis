@@ -2,40 +2,60 @@ package database
 
 import (
 	"fmt"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"os"
+	"path/filepath"
+	"runtime"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/lukabrkovic/artemis/internal/config"
+	"github.com/pressly/goose/v3"
 	"github.com/rs/zerolog"
 )
 
 func RunMigrations(db *sqlx.DB, cfg config.DatabaseConfig, logger zerolog.Logger) error {
-	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+	migrationsDir := getMigrationsPath()
+	logger.Debug().Str("path", migrationsDir).Msg("loading migrations")
 
-	m, err := migrate.New(
-		"file://migrations",
-		dsn,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create migrate instance: %w", err)
-	}
-	defer m.Close()
+	goose.SetLogger(&gooseLogger{logger: logger})
+	goose.SetDialect("postgres")
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := goose.Up(db.DB, migrationsDir); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	version, dirty, err := m.Version()
-	if err != nil && err != migrate.ErrNilVersion {
+	version, err := goose.GetDBVersion(db.DB)
+	if err != nil {
 		return fmt.Errorf("failed to get migration version: %w", err)
 	}
 
 	logger.Info().
-		Uint("version", version).
-		Bool("dirty", dirty).
+		Int64("version", version).
 		Msg("database migrations completed")
 
 	return nil
+}
+
+func getMigrationsPath() string {
+	_, b, _, _ := runtime.Caller(0)
+	basePath := filepath.Dir(b)
+	migrationsDir := filepath.Join(basePath, "..", "..", "migrations")
+	
+	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
+		return "migrations"
+	}
+	
+	absPath, _ := filepath.Abs(migrationsDir)
+	return absPath
+}
+
+type gooseLogger struct {
+	logger zerolog.Logger
+}
+
+func (g *gooseLogger) Printf(format string, v ...interface{}) {
+	g.logger.Info().Msg(fmt.Sprintf(format, v...))
+}
+
+func (g *gooseLogger) Fatalf(format string, v ...interface{}) {
+	g.logger.Fatal().Msg(fmt.Sprintf(format, v...))
 }
