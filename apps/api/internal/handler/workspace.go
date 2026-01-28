@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lukabrkovic/artemis/internal/service"
 	"github.com/lukabrkovic/artemis/internal/store"
+	"github.com/lukabrkovic/artemis/internal/validator"
 	"github.com/lukabrkovic/artemis/pkg/apperr"
 )
 
@@ -51,14 +52,20 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 
 	var req createWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperr.BadRequest(err.Error()))
+		handleValidationError(c, err)
 		return
 	}
 
-	workspace, err := h.service.CreateWorkspace(c.Request.Context(), userId, service.CreateWorkspaceInput{
+	serviceInput := service.CreateWorkspaceInput{
 		Name:      req.Name,
 		AvatarURL: req.AvatarURL,
-	})
+	}
+	if err := validator.Struct(&serviceInput); err != nil {
+		c.Error(err)
+		return
+	}
+
+	workspace, err := h.service.CreateWorkspace(c.Request.Context(), userId, serviceInput)
 	if err != nil {
 		c.Error(apperr.Internal(err))
 		return
@@ -269,7 +276,7 @@ func (h *WorkspaceHandler) AddMember(c *gin.Context) {
 
 	var req addMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperr.BadRequest(err.Error()))
+		handleValidationError(c, err)
 		return
 	}
 

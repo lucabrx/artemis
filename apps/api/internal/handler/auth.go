@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	v10 "github.com/go-playground/validator/v10"
 	"github.com/lukabrkovic/artemis/internal/service"
 	"github.com/lukabrkovic/artemis/internal/store"
 	"github.com/lukabrkovic/artemis/internal/validator"
@@ -69,7 +70,7 @@ type tokenResponse struct {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperr.BadRequest(err.Error()))
+		handleValidationError(c, err)
 		return
 	}
 
@@ -114,7 +115,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperr.BadRequest(err.Error()))
+		handleValidationError(c, err)
 		return
 	}
 
@@ -158,7 +159,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	var req refreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperr.BadRequest(err.Error()))
+		handleValidationError(c, err)
 		return
 	}
 
@@ -194,7 +195,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 func (h *AuthHandler) Logout(c *gin.Context) {
 	var req logoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.Error(apperr.BadRequest(err.Error()))
+		handleValidationError(c, err)
 		return
 	}
 
@@ -204,6 +205,15 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+func handleValidationError(c *gin.Context, err error) {
+	var validationErrs v10.ValidationErrors
+	if errors.As(err, &validationErrs) {
+		c.Error(validationErrs)
+		return
+	}
+	c.Error(apperr.BadRequest(err.Error()))
 }
 
 func toAuthResponse(result *service.AuthResult) authResponse {
