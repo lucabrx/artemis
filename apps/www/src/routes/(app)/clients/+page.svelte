@@ -155,33 +155,6 @@
 		}
 	];
 
-	const stats = [
-		{
-			label: 'Total Clients',
-			value: '24',
-			icon: 'lucide:users',
-			color: 'bg-blue-500/10 text-blue-600'
-		},
-		{
-			label: 'Active',
-			value: '18',
-			icon: 'lucide:user-check',
-			color: 'bg-emerald-500/10 text-emerald-600'
-		},
-		{
-			label: 'Leads',
-			value: '4',
-			icon: 'lucide:user-plus',
-			color: 'bg-amber-500/10 text-amber-600'
-		},
-		{
-			label: 'Outstanding',
-			value: '$60,000',
-			icon: 'lucide:dollar-sign',
-			color: 'bg-violet-500/10 text-violet-600'
-		}
-	];
-
 	const statusOptions = [
 		{ value: 'all', label: 'All Clients', count: clients.length },
 		{
@@ -253,46 +226,24 @@
 </svelte:head>
 
 <div class="min-h-screen bg-gradient-to-b from-background to-muted/20">
-	<div class="px-6 py-8">
-		<div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-			<div>
-				<h1 class="text-3xl font-bold tracking-tight">Clients</h1>
-				<p class="mt-1 text-muted-foreground">
-					Manage your clients, track communications, and view project history.
-				</p>
-			</div>
+	<div class="px-6 py-4">
+		<div class="mb-6 flex items-center justify-end gap-2">
 			<Button class="gap-2" onclick={() => (showNewClientModal = true)}>
-				<Icon icon="lucide:user-plus" class="size-4" />
+				<Icon icon="hugeicons:user-add-01" class="size-5" />
 				Add Client
 			</Button>
-		</div>
-
-		<div class="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-			{#each stats as stat}
-				<div class="rounded-2xl border border-border bg-card p-5 transition-shadow hover:shadow-lg">
-					<div class="flex items-center gap-4">
-						<div class="flex size-12 items-center justify-center rounded-xl {stat.color}">
-							<Icon icon={stat.icon} class="size-6" />
-						</div>
-						<div>
-							<p class="text-sm text-muted-foreground">{stat.label}</p>
-							<p class="text-2xl font-bold">{stat.value}</p>
-						</div>
-					</div>
-				</div>
-			{/each}
 		</div>
 
 		<div class="overflow-hidden rounded-2xl border border-border bg-card">
 			<div class="flex flex-col gap-4 border-b border-border p-4 sm:flex-row">
 				<div class="relative flex-1">
 					<Icon
-						icon="lucide:search"
-						class="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+						icon="hugeicons:search-01"
+						class="absolute top-1/2 left-3 size-5 -translate-y-1/2 text-muted-foreground"
 					/>
 					<Input
 						placeholder="Search clients by name, company, or email..."
-						class="pl-10"
+						class="pl-11"
 						bind:value={searchQuery}
 					/>
 				</div>
@@ -319,7 +270,7 @@
 								: 'text-muted-foreground hover:text-foreground'}"
 							onclick={() => (viewMode = 'grid')}
 						>
-							<Icon icon="lucide:grid-3x3" class="size-4" />
+							<Icon icon="hugeicons:grid" class="size-5" />
 						</button>
 						<button
 							class="rounded p-1.5 transition-colors {viewMode === 'list'
@@ -327,7 +278,7 @@
 								: 'text-muted-foreground hover:text-foreground'}"
 							onclick={() => (viewMode = 'list')}
 						>
-							<Icon icon="lucide:list" class="size-4" />
+							<Icon icon="hugeicons:menu-square" class="size-5" />
 						</button>
 					</div>
 				</div>
@@ -336,7 +287,7 @@
 			{#if filteredClients().length === 0}
 				<div class="p-12 text-center">
 					<div class="mb-4 inline-flex size-16 items-center justify-center rounded-full bg-muted">
-						<Icon icon="lucide:users" class="size-8 text-muted-foreground" />
+						<Icon icon="hugeicons:users-01" class="size-8 text-muted-foreground" />
 					</div>
 					<h3 class="text-lg font-semibold">No clients found</h3>
 					<p class="mt-1 text-muted-foreground">Try adjusting your search or filters.</p>
@@ -386,7 +337,7 @@
 
 							<div class="flex items-center justify-between border-t border-border pt-4">
 								<div class="flex items-center gap-1 text-sm text-muted-foreground">
-									<Icon icon="lucide:folder" class="size-4" />
+									<Icon icon="hugeicons:folder-01" class="size-4" />
 									<span>{client.projects.active} active / {client.projects.total} total</span>
 								</div>
 								<span class="text-xs text-muted-foreground">{client.lastContact}</span>
@@ -409,7 +360,7 @@
 										e.stopPropagation();
 									}}
 								>
-									<Icon icon="lucide:mail" class="mr-2 size-4" />
+									<Icon icon="hugeicons:mail-01" class="mr-2 size-4" />
 									Email
 								</Button>
 								<Button
@@ -420,7 +371,7 @@
 										e.stopPropagation();
 									}}
 								>
-									<Icon icon="lucide:plus" class="mr-2 size-4" />
+									<Icon icon="hugeicons:plus-sign" class="mr-2 size-4" />
 									Project
 								</Button>
 							</div>
@@ -470,7 +421,7 @@
 											e.stopPropagation();
 										}}
 									>
-										<Icon icon="lucide:more-vertical" class="size-4" />
+										<Icon icon="hugeicons:more-vertical" class="size-4" />
 									</Button>
 								</div>
 							</div>
@@ -496,17 +447,17 @@
 			>
 				<div class="flex items-center gap-3">
 					<Button variant="ghost" size="icon" onclick={closeClientDrawer}>
-						<Icon icon="lucide:x" class="size-5" />
+						<Icon icon="hugeicons:cancel-01" class="size-5" />
 					</Button>
 					<span class="font-semibold">Client Details</span>
 				</div>
 				<div class="flex gap-2">
 					<Button variant="outline" size="sm">
-						<Icon icon="lucide:edit" class="mr-2 size-4" />
+						<Icon icon="hugeicons:pencil-edit-01" class="mr-2 size-4" />
 						Edit
 					</Button>
 					<Button variant="outline" size="sm" class="text-destructive hover:text-destructive">
-						<Icon icon="lucide:trash-2" class="mr-2 size-4" />
+						<Icon icon="hugeicons:delete-01" class="mr-2 size-4" />
 					</Button>
 				</div>
 			</div>
@@ -561,14 +512,14 @@
 					<h3 class="font-semibold">Contact Information</h3>
 					<div class="space-y-3">
 						<div class="flex items-center gap-3">
-							<Icon icon="lucide:mail" class="size-5 text-muted-foreground" />
+							<Icon icon="hugeicons:mail-01" class="size-5 text-muted-foreground" />
 							<a href="mailto:{selectedClient.email}" class="text-primary hover:underline"
 								>{selectedClient.email}</a
 							>
 						</div>
 						{#if selectedClient.phone}
 							<div class="flex items-center gap-3">
-								<Icon icon="lucide:phone" class="size-5 text-muted-foreground" />
+								<Icon icon="hugeicons:call" class="size-5 text-muted-foreground" />
 								<a href="tel:{selectedClient.phone}" class="hover:underline"
 									>{selectedClient.phone}</a
 								>
@@ -576,7 +527,7 @@
 						{/if}
 						{#if selectedClient.website}
 							<div class="flex items-center gap-3">
-								<Icon icon="lucide:globe" class="size-5 text-muted-foreground" />
+								<Icon icon="hugeicons:globe" class="size-5 text-muted-foreground" />
 								<a
 									href={selectedClient.website}
 									target="_blank"
@@ -586,7 +537,7 @@
 						{/if}
 						{#if selectedClient.address}
 							<div class="flex items-center gap-3">
-								<Icon icon="lucide:map-pin" class="size-5 text-muted-foreground" />
+								<Icon icon="hugeicons:location-01" class="size-5 text-muted-foreground" />
 								<span class="text-muted-foreground">{selectedClient.address}</span>
 							</div>
 						{/if}
@@ -604,7 +555,7 @@
 					<div class="flex items-center justify-between border-b border-border p-4">
 						<h3 class="font-semibold">Recent Projects</h3>
 						<Button variant="ghost" size="sm">
-							<Icon icon="lucide:plus" class="mr-2 size-4" />
+							<Icon icon="hugeicons:plus-sign" class="mr-2 size-4" />
 							New Project
 						</Button>
 					</div>
@@ -640,7 +591,7 @@
 							<div class="flex items-center justify-between p-4">
 								<div class="flex items-center gap-3">
 									<div class="flex size-8 items-center justify-center rounded-lg bg-muted">
-										<Icon icon="lucide:activity" class="size-4 text-muted-foreground" />
+										<Icon icon="hugeicons:activity-01" class="size-4 text-muted-foreground" />
 									</div>
 									<span>{activity.action}</span>
 								</div>
@@ -737,7 +688,7 @@
 	{#snippet footer()}
 		<Button variant="outline" onclick={() => (showNewClientModal = false)}>Cancel</Button>
 		<Button type="submit" form="new-client-form">
-			<Icon icon="lucide:user-plus" class="mr-2 size-4" />
+			<Icon icon="hugeicons:user-add-01" class="mr-2 size-4" />
 			Create Client
 		</Button>
 	{/snippet}

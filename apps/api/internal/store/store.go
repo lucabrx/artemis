@@ -12,7 +12,6 @@ type DBTX interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	GetContext(ctx context.Context, dest any, query string, args ...any) error
 	SelectContext(ctx context.Context, dest any, query string, args ...any) error
-	// Add other necessary sqlx methods if needed, but these cover the basics used
 }
 
 type Store struct {
@@ -54,5 +53,3 @@ func (s *Store) ExecTx(ctx context.Context, fn func(*Store) error) error {
 	return tx.Commit()
 }
 
-// Repository interface is no longer needed as we use specific interfaces
-// Querier interface is also removed in favor of specific repository interfaces

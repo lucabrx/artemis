@@ -46,7 +46,6 @@ func NewWorkspaceService(store *store.Store, storage pkgstorage.Provider) *Works
 var _ Workspace = (*WorkspaceService)(nil)
 
 func (s *WorkspaceService) CreateWorkspace(ctx context.Context, userID uuid.UUID, input CreateWorkspaceInput) (*store.Workspace, error) {
-	// Transaction: Create Workspace -> Add Creator as Owner
 	var workspace *store.Workspace
 	err := s.store.ExecTx(ctx, func(tx *store.Store) error {
 		var err error
@@ -65,7 +64,6 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, userID uuid.UUID
 }
 
 func (s *WorkspaceService) GetWorkspace(ctx context.Context, userID, workspaceID uuid.UUID) (*store.Workspace, error) {
-	// Check membership first
 	_, err := s.store.Workspaces.GetWorkspaceMemberRole(ctx, workspaceID, userID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotMember) {
