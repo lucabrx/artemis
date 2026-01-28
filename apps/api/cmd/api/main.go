@@ -93,16 +93,19 @@ func main() {
 		Logger:                  log,
 		Environment:             cfg.Server.Environment,
 		EnableOpenAPIValidation: cfg.Server.EnableOpenAPIValidation,
+		MaxRequestSize:          cfg.Server.MaxRequestSize,
 		EventBus:                eventBus,
 		AuditLogger:             auditLogger,
 	})
 
 	srv := &http.Server{
-		Addr:         ":" + cfg.Server.Port,
-		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Addr:              ":" + cfg.Server.Port,
+		Handler:           r,
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MB max header size
 	}
 
 	go func() {

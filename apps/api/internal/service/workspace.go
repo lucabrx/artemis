@@ -9,6 +9,7 @@ import (
 	"github.com/lukabrkovic/artemis/internal/events"
 	"github.com/lukabrkovic/artemis/internal/store"
 	pkgstorage "github.com/lukabrkovic/artemis/pkg/storage"
+	"github.com/rs/zerolog"
 )
 
 var (
@@ -39,10 +40,16 @@ type WorkspaceService struct {
 	store     *store.Store
 	storage   pkgstorage.Provider
 	eventBus  EventPublisher
+	logger    zerolog.Logger
 }
 
-func NewWorkspaceService(store *store.Store, storage pkgstorage.Provider, eventBus EventPublisher) *WorkspaceService {
-	return &WorkspaceService{store: store, storage: storage, eventBus: eventBus}
+func NewWorkspaceService(store *store.Store, storage pkgstorage.Provider, eventBus EventPublisher, logger zerolog.Logger) *WorkspaceService {
+	return &WorkspaceService{
+		store:    store,
+		storage:  storage,
+		eventBus: eventBus,
+		logger:   logger.With().Str("component", "workspace_service").Logger(),
+	}
 }
 
 var _ Workspace = (*WorkspaceService)(nil)

@@ -22,6 +22,7 @@ type ServerConfig struct {
 	Port                    string
 	Environment             string
 	EnableOpenAPIValidation bool
+	MaxRequestSize          int64 // in bytes
 }
 
 type DatabaseConfig struct {
@@ -81,6 +82,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("SERVER_PORT", "8080")
 	viper.SetDefault("SERVER_ENVIRONMENT", "development")
 	viper.SetDefault("ENABLE_OPENAPI_VALIDATION", false)
+	viper.SetDefault("MAX_REQUEST_SIZE", 10*1024*1024) // 10 MB default
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
 	viper.SetDefault("DB_USER", "artemis")
@@ -132,6 +134,7 @@ func Load() (*Config, error) {
 			Port:                    viper.GetString("SERVER_PORT"),
 			Environment:             viper.GetString("SERVER_ENVIRONMENT"),
 			EnableOpenAPIValidation: viper.GetBool("ENABLE_OPENAPI_VALIDATION"),
+			MaxRequestSize:          viper.GetInt64("MAX_REQUEST_SIZE"),
 		},
 		Database: DatabaseConfig{
 			Host:            viper.GetString("DB_HOST"),

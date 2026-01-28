@@ -28,6 +28,7 @@ type Config struct {
 	Logger                  zerolog.Logger
 	Environment             string
 	EnableOpenAPIValidation bool
+	MaxRequestSize          int64
 	EventBus                *events.Bus
 	AuditLogger             *audit.Logger
 }
@@ -51,15 +52,17 @@ func New(cfg Config) *gin.Engine {
 
 	router.Use(middleware.ErrorHandler(cfg.Logger))
 	router.Use(middleware.CORS())
+	router.Use(middleware.RequestSizeLimiter(cfg.MaxRequestSize))
+	router.Use(middleware.RequireContentLength(cfg.MaxRequestSize))
 	router.Use(middleware.RateLimiterByIP(1000, 60))
 
 	if cfg.AuditLogger != nil {
 		router.Use(middleware.NewAuditMiddleware(cfg.AuditLogger).Middleware())
 	}
 
-	authService := service.NewAuthService(cfg.Store, cfg.Cache, cfg.TokenMaker, cfg.TokenConfig, cfg.EventBus)
-	userService := service.NewUserService(cfg.Store, cfg.Cache, cfg.Storage)
-	workspaceService := service.NewWorkspaceService(cfg.Store, cfg.Storage, cfg.EventBus)
+	authService := service.NewAuthService(cfg.Store, cfg.Cache, cfg.TokenMaker, cfg.TokenConfig, cfg.EventBus, cfg.Logger)
+	userService := service.NewUserService(cfg.Store, cfg.Cache, cfg.Storage, cfg.Logger)
+	workspaceService := service.NewWorkspaceService(cfg.Store, cfg.Storage, cfg.EventBus, cfg.Logger)
 
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService)

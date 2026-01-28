@@ -11,6 +11,7 @@ import (
 	"github.com/lukabrkovic/artemis/internal/events"
 	"github.com/lukabrkovic/artemis/internal/store"
 	"github.com/lukabrkovic/artemis/pkg/token"
+	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,19 +33,21 @@ type AuthService struct {
 	tokenMaker  token.Maker
 	tokenConfig config.TokenConfig
 	eventBus    EventPublisher
+	logger      zerolog.Logger
 }
 
 type EventPublisher interface {
 	Publish(ctx context.Context, eventType events.EventType, userID uuid.UUID, payload any) error
 }
 
-func NewAuthService(store *store.Store, cache cache.UserCache, tokenMaker token.Maker, tokenConfig config.TokenConfig, eventBus EventPublisher) *AuthService {
+func NewAuthService(store *store.Store, cache cache.UserCache, tokenMaker token.Maker, tokenConfig config.TokenConfig, eventBus EventPublisher, logger zerolog.Logger) *AuthService {
 	return &AuthService{
 		store:       store,
 		cache:       cache,
 		tokenMaker:  tokenMaker,
 		tokenConfig: tokenConfig,
 		eventBus:    eventBus,
+		logger:      logger.With().Str("component", "auth_service").Logger(),
 	}
 }
 
@@ -118,7 +121,8 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 		}
 
 		if cacheErr := s.cache.SetUser(ctx, user); cacheErr != nil {
-		}
+		s.logger.Warn().Err(cacheErr).Str("user_id", user.ID.String()).Msg("failed to cache user after registration")
+	}
 
 		result, err = s.createAuthResult(ctx, tx, user, ip, userAgent)
 		return err

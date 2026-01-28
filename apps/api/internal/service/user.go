@@ -9,6 +9,7 @@ import (
 	"github.com/lukabrkovic/artemis/internal/cache"
 	"github.com/lukabrkovic/artemis/internal/store"
 	pkgstorage "github.com/lukabrkovic/artemis/pkg/storage"
+	"github.com/rs/zerolog"
 )
 
 type User interface {
@@ -27,13 +28,15 @@ type UserService struct {
 	store   *store.Store
 	cache   cache.UserCache
 	storage pkgstorage.Provider
+	logger  zerolog.Logger
 }
 
-func NewUserService(store *store.Store, cache cache.UserCache, storage pkgstorage.Provider) *UserService {
+func NewUserService(store *store.Store, cache cache.UserCache, storage pkgstorage.Provider, logger zerolog.Logger) *UserService {
 	return &UserService{
 		store:   store,
 		cache:   cache,
 		storage: storage,
+		logger:  logger.With().Str("component", "user_service").Logger(),
 	}
 }
 
