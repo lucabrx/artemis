@@ -27,13 +27,6 @@ func (m *AuditMiddleware) Middleware() gin.HandlerFunc {
 			return
 		}
 
-		var userID *uuid.UUID
-		if uid, exists := c.Get("user_id"); exists {
-			if id, ok := uid.(uuid.UUID); ok {
-				userID = &id
-			}
-		}
-
 		var bodyBytes []byte
 		if c.Request.Body != nil {
 			bodyBytes, _ = io.ReadAll(c.Request.Body)
@@ -43,12 +36,12 @@ func (m *AuditMiddleware) Middleware() gin.HandlerFunc {
 		c.Next()
 
 		if c.Writer.Status() >= 200 && c.Writer.Status() < 300 {
-			m.logAction(c, userID, bodyBytes)
+			m.logAction(c, bodyBytes)
 		}
 	}
 }
 
-func (m *AuditMiddleware) logAction(c *gin.Context, userID *uuid.UUID, bodyBytes []byte) {
+func (m *AuditMiddleware) logAction(c *gin.Context, bodyBytes []byte) {
 	ctx := c.Request.Context()
 
 	action, entityType, entityID := extractActionAndEntity(c)
@@ -60,6 +53,17 @@ func (m *AuditMiddleware) logAction(c *gin.Context, userID *uuid.UUID, bodyBytes
 	if len(bodyBytes) > 0 {
 		json.Unmarshal(bodyBytes, &newVal)
 		newVal = sanitizeSensitiveData(newVal)
+	}
+
+	var userID *uuid.UUID
+	if uid, exists := c.Get("user_id"); exists {
+		if id, ok := uid.(uuid.UUID); ok {
+			userID = &id
+		}
+	}
+
+	if entityID == "" && userID != nil {
+		entityID = userID.String()
 	}
 
 	m.logger.Log(ctx, userID, action, entityType, entityID, nil, newVal, c.ClientIP(), c.Request.UserAgent())

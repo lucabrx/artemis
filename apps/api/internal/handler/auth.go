@@ -87,6 +87,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	c.Set("user_id", result.User.ID)
+
 	c.JSON(http.StatusCreated, toAuthResponse(result))
 }
 
@@ -122,6 +124,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.Error(apperr.Internal(err))
 		return
 	}
+
+	c.Set("user_id", result.User.ID)
 
 	c.JSON(http.StatusOK, toAuthResponse(result))
 }
