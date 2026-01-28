@@ -19,8 +19,8 @@ var (
 )
 
 type CreateWorkspaceInput struct {
-	Name      string
-	AvatarURL *string
+	Name      string  `json:"name" validate:"required,min=2,max:100"`
+	AvatarURL *string `json:"avatar_url,omitempty" validate:"omitempty,url,max:500"`
 }
 
 type Workspace interface {

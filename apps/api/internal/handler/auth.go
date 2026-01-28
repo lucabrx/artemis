@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lukabrkovic/artemis/internal/service"
 	"github.com/lukabrkovic/artemis/internal/store"
+	"github.com/lukabrkovic/artemis/internal/validator"
 	"github.com/lukabrkovic/artemis/pkg/apperr"
 	"github.com/lukabrkovic/artemis/pkg/token"
 )
@@ -72,11 +73,17 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.Register(c.Request.Context(), service.RegisterInput{
+	serviceInput := service.RegisterInput{
 		Email:    req.Email,
 		Password: req.Password,
 		Name:     req.Name,
-	}, c.ClientIP(), c.GetHeader("User-Agent"))
+	}
+	if err := validator.Struct(&serviceInput); err != nil {
+		c.Error(err)
+		return
+	}
+
+	result, err := h.service.Register(c.Request.Context(), serviceInput, c.ClientIP(), c.GetHeader("User-Agent"))
 
 	if err != nil {
 		if errors.Is(err, service.ErrEmailExists) {
@@ -111,10 +118,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.Login(c.Request.Context(), service.LoginInput{
+	serviceInput := service.LoginInput{
 		Email:    req.Email,
 		Password: req.Password,
-	}, c.ClientIP(), c.GetHeader("User-Agent"))
+	}
+	if err := validator.Struct(&serviceInput); err != nil {
+		c.Error(err)
+		return
+	}
+
+	result, err := h.service.Login(c.Request.Context(), serviceInput, c.ClientIP(), c.GetHeader("User-Agent"))
 
 	if err != nil {
 		if errors.Is(err, service.ErrInvalidCredentials) {

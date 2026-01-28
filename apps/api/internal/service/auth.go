@@ -54,20 +54,20 @@ func NewAuthService(store *store.Store, cache cache.UserCache, tokenMaker token.
 var _ Auth = (*AuthService)(nil)
 
 type RegisterInput struct {
-	Email    *string
-	Password string
-	Name     string
+	Email    *string `json:"email,omitempty" validate:"omitempty,email,max=255"`
+	Password string  `json:"password" validate:"required,min=8,max=100"`
+	Name     string  `json:"name" validate:"required,min=2,max=100"`
 }
 
 type LoginInput struct {
-	Email    string
-	Password string
+	Email    string `json:"email" validate:"required,email,max=255"`
+	Password string `json:"password" validate:"required,max=100"`
 }
 
 type UpdateProfileInput struct {
-	Name      string
-	Email     *string
-	AvatarURL *string
+	Name      string  `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
+	Email     *string `json:"email,omitempty" validate:"omitempty,email,max=255"`
+	AvatarURL *string `json:"avatar_url,omitempty" validate:"omitempty,url,max=500"`
 }
 
 type AuthResult struct {
