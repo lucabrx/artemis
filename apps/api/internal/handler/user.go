@@ -160,7 +160,7 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 // @Param        sort_by  query     string  false  "Sort by: created_at, expires_at (default: created_at)"
 // @Param        order    query     string  false  "Order: asc, desc (default: desc)"
 // @Param        search   query     string  false  "Search in IP address or user agent"
-// @Success      200  {object}  store.PaginatedResponse[store.Session]
+// @Success      200  {object}  store.PaginatedSessionsResponse
 // @Failure      401  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
 // @Router       /users/sessions [get]

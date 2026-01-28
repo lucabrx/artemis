@@ -79,7 +79,7 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 // @Param        sort_by  query     string  false  "Sort by: name, role, created_at, updated_at (default: created_at)"
 // @Param        order    query     string  false  "Order: asc, desc (default: desc)"
 // @Param        search   query     string  false  "Search in workspace name or role"
-// @Success      200  {object}  store.PaginatedResponse[store.WorkspaceWithRole]
+// @Success      200  {object}  store.PaginatedWorkspacesResponse
 // @Failure      401  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
 // @Router       /workspaces [get]
@@ -355,7 +355,7 @@ func (h *WorkspaceHandler) RemoveMember(c *gin.Context) {
 // @Param        sort_by  query     string  false  "Sort by: name, email, role, joined_at (default: joined_at)"
 // @Param        order    query     string  false  "Order: asc, desc (default: asc)"
 // @Param        search   query     string  false  "Search in name, email, or role"
-// @Success      200  {object}  store.PaginatedResponse[store.WorkspaceMember]
+// @Success      200  {object}  store.PaginatedMembersResponse
 // @Failure      401  {object}  apperr.AppError
 // @Failure      403  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError

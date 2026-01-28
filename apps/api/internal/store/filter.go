@@ -136,3 +136,22 @@ func BuildFilterResponse[T any](data []T, total int64, filters FilterParams) Pag
 		},
 	}
 }
+
+// fu swagger
+type PaginatedSessionsResponse struct {
+	Data       []Session      `json:"data"`
+	Pagination PaginationInfo `json:"pagination"`
+	Filters    FilterInfo     `json:"filters"`
+}
+
+type PaginatedWorkspacesResponse struct {
+	Data       []WorkspaceWithRole `json:"data"`
+	Pagination PaginationInfo      `json:"pagination"`
+	Filters    FilterInfo          `json:"filters"`
+}
+
+type PaginatedMembersResponse struct {
+	Data       []WorkspaceMember `json:"data"`
+	Pagination PaginationInfo    `json:"pagination"`
+	Filters    FilterInfo        `json:"filters"`
+}

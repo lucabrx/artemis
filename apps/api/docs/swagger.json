@@ -382,7 +382,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "List all active sessions for the user",
+                "description": "List all active sessions for the user with filtering, sorting, and pagination",
                 "consumes": [
                     "application/json"
                 ],
@@ -393,14 +393,43 @@
                     "user"
                 ],
                 "summary": "List sessions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by: created_at, expires_at (default: created_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order: asc, desc (default: desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in IP address or user agent",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/store.Session"
-                            }
+                            "$ref": "#/definitions/store.PaginatedSessionsResponse"
                         }
                     },
                     "401": {
@@ -483,7 +512,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "List all workspaces user is a member of",
+                "description": "List all workspaces user is a member of with filtering, sorting, and pagination",
                 "consumes": [
                     "application/json"
                 ],
@@ -494,14 +523,43 @@
                     "workspace"
                 ],
                 "summary": "List workspaces",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by: name, role, created_at, updated_at (default: created_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order: asc, desc (default: desc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in workspace name or role",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/store.WorkspaceWithRole"
-                            }
+                            "$ref": "#/definitions/store.PaginatedWorkspacesResponse"
                         }
                     },
                     "401": {
@@ -771,6 +829,77 @@
                 }
             }
         },
+        "/workspaces/{id}/avatar": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload a new avatar image for the workspace",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "workspace"
+                ],
+                "summary": "Upload workspace avatar",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Workspace ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Avatar image",
+                        "name": "avatar",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperr.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperr.AppError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apperr.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperr.AppError"
+                        }
+                    }
+                }
+            }
+        },
         "/workspaces/{id}/members": {
             "get": {
                 "security": [
@@ -778,7 +907,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "List all members of the workspace",
+                "description": "List all members of the workspace with filtering, sorting, and pagination",
                 "consumes": [
                     "application/json"
                 ],
@@ -796,16 +925,43 @@
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Offset (default 0)",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by: name, email, role, joined_at (default: joined_at)",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Order: asc, desc (default: asc)",
+                        "name": "order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in name, email, or role",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/store.WorkspaceMember"
-                            }
+                            "$ref": "#/definitions/store.PaginatedMembersResponse"
                         }
                     },
                     "401": {
@@ -987,19 +1143,19 @@
         "handler.addMemberRequest": {
             "type": "object",
             "required": [
-                "role",
-                "user_id"
+                "email",
+                "role"
             ],
             "properties": {
+                "email": {
+                    "type": "string"
+                },
                 "role": {
                     "type": "string",
                     "enum": [
                         "admin",
                         "member"
                     ]
-                },
-                "user_id": {
-                    "type": "string"
                 }
             }
         },
@@ -1009,8 +1165,14 @@
                 "access_token": {
                     "type": "string"
                 },
+                "access_token_expires_at": {
+                    "type": "integer"
+                },
                 "refresh_token": {
                     "type": "string"
+                },
+                "refresh_token_expires_at": {
+                    "type": "integer"
                 },
                 "user": {
                     "$ref": "#/definitions/store.User"
@@ -1095,8 +1257,14 @@
                 "access_token": {
                     "type": "string"
                 },
+                "access_token_expires_at": {
+                    "type": "integer"
+                },
                 "refresh_token": {
                     "type": "string"
+                },
+                "refresh_token_expires_at": {
+                    "type": "integer"
                 }
             }
         },
@@ -1115,6 +1283,85 @@
                 "name": {
                     "type": "string",
                     "minLength": 2
+                }
+            }
+        },
+        "store.FilterInfo": {
+            "type": "object",
+            "properties": {
+                "order": {
+                    "type": "string"
+                },
+                "search": {
+                    "type": "string"
+                },
+                "sort_by": {
+                    "type": "string"
+                }
+            }
+        },
+        "store.PaginatedMembersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/store.WorkspaceMember"
+                    }
+                },
+                "filters": {
+                    "$ref": "#/definitions/store.FilterInfo"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/store.PaginationInfo"
+                }
+            }
+        },
+        "store.PaginatedSessionsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/store.Session"
+                    }
+                },
+                "filters": {
+                    "$ref": "#/definitions/store.FilterInfo"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/store.PaginationInfo"
+                }
+            }
+        },
+        "store.PaginatedWorkspacesResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/store.WorkspaceWithRole"
+                    }
+                },
+                "filters": {
+                    "$ref": "#/definitions/store.FilterInfo"
+                },
+                "pagination": {
+                    "$ref": "#/definitions/store.PaginationInfo"
+                }
+            }
+        },
+        "store.PaginationInfo": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -1187,7 +1434,16 @@
         "store.WorkspaceMember": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
                 "joined_at": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "role": {

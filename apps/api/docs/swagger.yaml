@@ -9,23 +9,27 @@ definitions:
     type: object
   handler.addMemberRequest:
     properties:
+      email:
+        type: string
       role:
         enum:
         - admin
         - member
         type: string
-      user_id:
-        type: string
     required:
+    - email
     - role
-    - user_id
     type: object
   handler.authResponse:
     properties:
       access_token:
         type: string
+      access_token_expires_at:
+        type: integer
       refresh_token:
         type: string
+      refresh_token_expires_at:
+        type: integer
       user:
         $ref: '#/definitions/store.User'
     type: object
@@ -81,8 +85,12 @@ definitions:
     properties:
       access_token:
         type: string
+      access_token_expires_at:
+        type: integer
       refresh_token:
         type: string
+      refresh_token_expires_at:
+        type: integer
     type: object
   handler.updateProfileRequest:
     properties:
@@ -95,6 +103,57 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  store.FilterInfo:
+    properties:
+      order:
+        type: string
+      search:
+        type: string
+      sort_by:
+        type: string
+    type: object
+  store.PaginatedMembersResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/store.WorkspaceMember'
+        type: array
+      filters:
+        $ref: '#/definitions/store.FilterInfo'
+      pagination:
+        $ref: '#/definitions/store.PaginationInfo'
+    type: object
+  store.PaginatedSessionsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/store.Session'
+        type: array
+      filters:
+        $ref: '#/definitions/store.FilterInfo'
+      pagination:
+        $ref: '#/definitions/store.PaginationInfo'
+    type: object
+  store.PaginatedWorkspacesResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/store.WorkspaceWithRole'
+        type: array
+      filters:
+        $ref: '#/definitions/store.FilterInfo'
+      pagination:
+        $ref: '#/definitions/store.PaginationInfo'
+    type: object
+  store.PaginationInfo:
+    properties:
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
     type: object
   store.Session:
     properties:
@@ -141,7 +200,13 @@ definitions:
     type: object
   store.WorkspaceMember:
     properties:
+      avatar_url:
+        type: string
+      email:
+        type: string
       joined_at:
+        type: string
+      name:
         type: string
       role:
         type: string
@@ -412,16 +477,36 @@ paths:
     get:
       consumes:
       - application/json
-      description: List all active sessions for the user
+      description: List all active sessions for the user with filtering, sorting,
+        and pagination
+      parameters:
+      - description: Limit (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: 'Sort by: created_at, expires_at (default: created_at)'
+        in: query
+        name: sort_by
+        type: string
+      - description: 'Order: asc, desc (default: desc)'
+        in: query
+        name: order
+        type: string
+      - description: Search in IP address or user agent
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/store.Session'
-            type: array
+            $ref: '#/definitions/store.PaginatedSessionsResponse'
         "401":
           description: Unauthorized
           schema:
@@ -476,16 +561,36 @@ paths:
     get:
       consumes:
       - application/json
-      description: List all workspaces user is a member of
+      description: List all workspaces user is a member of with filtering, sorting,
+        and pagination
+      parameters:
+      - description: Limit (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: 'Sort by: name, role, created_at, updated_at (default: created_at)'
+        in: query
+        name: sort_by
+        type: string
+      - description: 'Order: asc, desc (default: desc)'
+        in: query
+        name: order
+        type: string
+      - description: Search in workspace name or role
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/store.WorkspaceWithRole'
-            type: array
+            $ref: '#/definitions/store.PaginatedWorkspacesResponse'
         "401":
           description: Unauthorized
           schema:
@@ -661,16 +766,83 @@ paths:
       summary: Update workspace
       tags:
       - workspace
-  /workspaces/{id}/members:
-    get:
+  /workspaces/{id}/avatar:
+    post:
       consumes:
-      - application/json
-      description: List all members of the workspace
+      - multipart/form-data
+      description: Upload a new avatar image for the workspace
       parameters:
       - description: Workspace ID
         in: path
         name: id
         required: true
+        type: string
+      - description: Avatar image
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperr.AppError'
+      security:
+      - BearerAuth: []
+      summary: Upload workspace avatar
+      tags:
+      - workspace
+  /workspaces/{id}/members:
+    get:
+      consumes:
+      - application/json
+      description: List all members of the workspace with filtering, sorting, and
+        pagination
+      parameters:
+      - description: Workspace ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Limit (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset (default 0)
+        in: query
+        name: offset
+        type: integer
+      - description: 'Sort by: name, email, role, joined_at (default: joined_at)'
+        in: query
+        name: sort_by
+        type: string
+      - description: 'Order: asc, desc (default: asc)'
+        in: query
+        name: order
+        type: string
+      - description: Search in name, email, or role
+        in: query
+        name: search
         type: string
       produces:
       - application/json
@@ -678,9 +850,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/store.WorkspaceMember'
-            type: array
+            $ref: '#/definitions/store.PaginatedMembersResponse'
         "401":
           description: Unauthorized
           schema:
