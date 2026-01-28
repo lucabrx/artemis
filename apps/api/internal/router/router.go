@@ -17,12 +17,14 @@ import (
 )
 
 type Config struct {
-	Store       *store.Store
-	Cache       *cache.Cache
-	Storage     *storage.MinIO
-	TokenMaker  token.Maker
-	TokenConfig config.TokenConfig
-	Logger      zerolog.Logger
+	Store                   *store.Store
+	Cache                   *cache.Cache
+	Storage                 *storage.MinIO
+	TokenMaker              token.Maker
+	TokenConfig             config.TokenConfig
+	Logger                  zerolog.Logger
+	Environment             string // "development", "staging", "production"
+	EnableOpenAPIValidation bool
 }
 
 func New(cfg Config) *gin.Engine {
@@ -30,6 +32,17 @@ func New(cfg Config) *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(middleware.RequestID(cfg.Logger))
 	router.Use(middleware.Logger(cfg.Logger))
+
+	if cfg.EnableOpenAPIValidation {
+		validator, err := middleware.NewOpenAPIValidator("./docs/swagger.yaml", cfg.Logger)
+		if err != nil {
+			cfg.Logger.Warn().Err(err).Msg("failed to load OpenAPI validator, continuing without validation")
+		} else {
+			router.Use(validator.Validate())
+			cfg.Logger.Info().Msg("OpenAPI validation enabled")
+		}
+	}
+
 	router.Use(middleware.ErrorHandler(cfg.Logger))
 	router.Use(middleware.CORS())
 	router.Use(middleware.RateLimiterByIP(1000, 60))

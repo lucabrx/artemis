@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,9 +50,9 @@ type WorkspaceRepository interface {
 	UpdateWorkspace(ctx context.Context, id uuid.UUID, name string) (*Workspace, error)
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	AddWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID, role string) error
-	GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID, pagination PaginationParams) ([]WorkspaceMember, error)
+	GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID, filters FilterParams) ([]WorkspaceMember, int64, error)
 	RemoveWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID) error
-	GetUserWorkspaces(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]WorkspaceWithRole, int64, error)
+	GetUserWorkspaces(ctx context.Context, userID uuid.UUID, filters FilterParams) ([]WorkspaceWithRole, int64, error)
 	GetWorkspaceMemberRole(ctx context.Context, workspaceID, userID uuid.UUID) (string, error)
 	UpdateWorkspaceAvatar(ctx context.Context, id uuid.UUID, avatarURL string) (*Workspace, error)
 	CountUserWorkspaces(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -143,21 +144,61 @@ func (r *workspaceRepository) AddWorkspaceMember(ctx context.Context, workspaceI
 	return err
 }
 
-func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID, pagination PaginationParams) ([]WorkspaceMember, error) {
+func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID, filters FilterParams) ([]WorkspaceMember, int64, error) {
 	var members []WorkspaceMember
-	query := `
+	var args []any
+	argPos := 1
+
+	baseQuery := `
 		SELECT wm.*, u.name, u.email, u.avatar_url
 		FROM workspace_members wm
 		JOIN users u ON wm.user_id = u.id
-		WHERE wm.workspace_id = $1
-		ORDER BY wm.joined_at ASC
-		LIMIT $2 OFFSET $3
-	`
-	err := r.db.SelectContext(ctx, &members, query, workspaceID, pagination.Limit, pagination.Offset)
-	if err != nil {
-		return nil, err
+		WHERE wm.workspace_id = $` + fmt.Sprintf("%d", argPos)
+	args = append(args, workspaceID)
+	argPos++
+
+	if filters.HasSearch() {
+		baseQuery += fmt.Sprintf(` AND (u.name ILIKE $%d OR u.email ILIKE $%d OR wm.role ILIKE $%d)`, argPos, argPos, argPos)
+		args = append(args, filters.GetSearchPattern())
+		argPos++
 	}
-	return members, nil
+
+	sortBy := filters.SortBy
+	if sortBy == "name" || sortBy == "email" {
+		sortBy = "u." + sortBy
+	} else if sortBy == "joined_at" || sortBy == "role" {
+		sortBy = "wm." + sortBy
+	} else {
+		sortBy = "wm.joined_at"
+	}
+	baseQuery += fmt.Sprintf(` ORDER BY %s %s`, sortBy, filters.Order)
+
+	baseQuery += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argPos, argPos+1)
+	args = append(args, filters.Limit, filters.Offset)
+
+	err := r.db.SelectContext(ctx, &members, baseQuery, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var totalArgs []any
+	totalArgPos := 1
+	countQuery := `SELECT COUNT(*) FROM workspace_members wm JOIN users u ON wm.user_id = u.id WHERE wm.workspace_id = $` + fmt.Sprintf("%d", totalArgPos)
+	totalArgs = append(totalArgs, workspaceID)
+	totalArgPos++
+
+	if filters.HasSearch() {
+		countQuery += fmt.Sprintf(` AND (u.name ILIKE $%d OR u.email ILIKE $%d OR wm.role ILIKE $%d)`, totalArgPos, totalArgPos, totalArgPos)
+		totalArgs = append(totalArgs, filters.GetSearchPattern())
+	}
+
+	var total int64
+	err = r.db.GetContext(ctx, &total, countQuery, totalArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return members, total, nil
 }
 
 func (r *workspaceRepository) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID) error {
@@ -176,24 +217,58 @@ func (r *workspaceRepository) RemoveWorkspaceMember(ctx context.Context, workspa
 	return nil
 }
 
-func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]WorkspaceWithRole, int64, error) {
+func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid.UUID, filters FilterParams) ([]WorkspaceWithRole, int64, error) {
 	var workspaces []WorkspaceWithRole
-	query := `
+	var args []any
+	argPos := 1
+
+	baseQuery := `
 		SELECT w.*, wm.role
 		FROM workspaces w
 		JOIN workspace_members wm ON w.id = wm.workspace_id
-		WHERE wm.user_id = $1
-		ORDER BY w.created_at DESC
-		LIMIT $2 OFFSET $3
-	`
-	err := r.db.SelectContext(ctx, &workspaces, query, userID, pagination.Limit, pagination.Offset)
+		WHERE wm.user_id = $` + fmt.Sprintf("%d", argPos)
+	args = append(args, userID)
+	argPos++
+
+	if filters.HasSearch() {
+		baseQuery += fmt.Sprintf(` AND (w.name ILIKE $%d OR wm.role ILIKE $%d)`, argPos, argPos)
+		args = append(args, filters.GetSearchPattern())
+		argPos++
+	}
+
+	sortBy := filters.SortBy
+	if sortBy == "name" {
+		sortBy = "w.name"
+	} else if sortBy == "role" {
+		sortBy = "wm.role"
+	} else if sortBy == "updated_at" {
+		sortBy = "w.updated_at"
+	} else {
+		sortBy = "w.created_at"
+	}
+	baseQuery += fmt.Sprintf(` ORDER BY %s %s`, sortBy, filters.Order)
+
+	baseQuery += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argPos, argPos+1)
+	args = append(args, filters.Limit, filters.Offset)
+
+	err := r.db.SelectContext(ctx, &workspaces, baseQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 
+	var totalArgs []any
+	totalArgPos := 1
+	countQuery := `SELECT COUNT(*) FROM workspace_members wm JOIN workspaces w ON w.id = wm.workspace_id WHERE wm.user_id = $` + fmt.Sprintf("%d", totalArgPos)
+	totalArgs = append(totalArgs, userID)
+	totalArgPos++
+
+	if filters.HasSearch() {
+		countQuery += fmt.Sprintf(` AND (w.name ILIKE $%d OR wm.role ILIKE $%d)`, totalArgPos, totalArgPos)
+		totalArgs = append(totalArgs, filters.GetSearchPattern())
+	}
+
 	var total int64
-	countQuery := `SELECT COUNT(*) FROM workspace_members WHERE user_id = $1`
-	err = r.db.GetContext(ctx, &total, countQuery, userID)
+	err = r.db.GetContext(ctx, &total, countQuery, totalArgs...)
 	if err != nil {
 		return nil, 0, err
 	}

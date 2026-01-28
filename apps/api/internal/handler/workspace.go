@@ -69,13 +69,16 @@ func (h *WorkspaceHandler) CreateWorkspace(c *gin.Context) {
 
 // ListWorkspaces godoc
 // @Summary      List workspaces
-// @Description  List all workspaces user is a member of with pagination
+// @Description  List all workspaces user is a member of with filtering, sorting, and pagination
 // @Tags         workspace
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        limit   query     int     false  "Limit (default 20, max 100)"
-// @Param        offset  query     int     false  "Offset (default 0)"
+// @Param        limit    query     int     false  "Limit (default 20, max 100)"
+// @Param        offset   query     int     false  "Offset (default 0)"
+// @Param        sort_by  query     string  false  "Sort by: name, role, created_at, updated_at (default: created_at)"
+// @Param        order    query     string  false  "Order: asc, desc (default: desc)"
+// @Param        search   query     string  false  "Search in workspace name or role"
 // @Success      200  {object}  store.PaginatedResponse[store.WorkspaceWithRole]
 // @Failure      401  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
@@ -87,12 +90,12 @@ func (h *WorkspaceHandler) ListWorkspaces(c *gin.Context) {
 		return
 	}
 
-	pagination := store.DefaultPagination()
-	if err := c.ShouldBindQuery(&pagination); err == nil {
-		pagination.Normalize()
+	filters := store.DefaultFilter()
+	if err := c.ShouldBindQuery(&filters); err == nil {
+		filters.Normalize()
 	}
 
-	workspaces, err := h.service.GetMyWorkspaces(c.Request.Context(), userId, pagination)
+	workspaces, err := h.service.GetMyWorkspaces(c.Request.Context(), userId, filters)
 	if err != nil {
 		c.Error(apperr.Internal(err))
 		return
@@ -341,14 +344,17 @@ func (h *WorkspaceHandler) RemoveMember(c *gin.Context) {
 
 // ListMembers godoc
 // @Summary      List members
-// @Description  List all members of the workspace with pagination
+// @Description  List all members of the workspace with filtering, sorting, and pagination
 // @Tags         workspace
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        id      path      string  true  "Workspace ID"
-// @Param        limit   query     int     false  "Limit (default 20, max 100)"
-// @Param        offset  query     int     false  "Offset (default 0)"
+// @Param        id       path      string  true  "Workspace ID"
+// @Param        limit    query     int     false  "Limit (default 20, max 100)"
+// @Param        offset   query     int     false  "Offset (default 0)"
+// @Param        sort_by  query     string  false  "Sort by: name, email, role, joined_at (default: joined_at)"
+// @Param        order    query     string  false  "Order: asc, desc (default: asc)"
+// @Param        search   query     string  false  "Search in name, email, or role"
 // @Success      200  {object}  store.PaginatedResponse[store.WorkspaceMember]
 // @Failure      401  {object}  apperr.AppError
 // @Failure      403  {object}  apperr.AppError
@@ -367,12 +373,12 @@ func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
 		return
 	}
 
-	pagination := store.DefaultPagination()
-	if err := c.ShouldBindQuery(&pagination); err == nil {
-		pagination.Normalize()
+	filters := store.DefaultFilter()
+	if err := c.ShouldBindQuery(&filters); err == nil {
+		filters.Normalize()
 	}
 
-	members, err := h.service.GetMembers(c.Request.Context(), userId, workspaceId, pagination)
+	members, err := h.service.GetMembers(c.Request.Context(), userId, workspaceId, filters)
 	if err != nil {
 		if errors.Is(err, service.ErrForbidden) {
 			c.Error(apperr.Forbidden("access denied"))
@@ -382,17 +388,9 @@ func (h *WorkspaceHandler) ListMembers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, store.PaginatedResponse[store.WorkspaceMember]{
-		Data: members,
-		Pagination: store.PaginationInfo{
-			Limit:  pagination.Limit,
-			Offset: pagination.Offset,
-			Total:  int64(len(members)), // Note: total would need separate count query
-		},
-	})
+	c.JSON(http.StatusOK, members)
 }
 
-// UploadAvatar godoc
 // @Summary      Upload workspace avatar
 // @Description  Upload a new avatar image for the workspace
 // @Tags         workspace

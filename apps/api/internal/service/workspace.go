@@ -24,13 +24,13 @@ type CreateWorkspaceInput struct {
 type Workspace interface {
 	CreateWorkspace(ctx context.Context, userID uuid.UUID, input CreateWorkspaceInput) (*store.Workspace, error)
 	GetWorkspace(ctx context.Context, userID, workspaceID uuid.UUID) (*store.Workspace, error)
-	GetMyWorkspaces(ctx context.Context, userID uuid.UUID, pagination store.PaginationParams) (*store.PaginatedResponse[store.WorkspaceWithRole], error)
+	GetMyWorkspaces(ctx context.Context, userID uuid.UUID, filters store.FilterParams) (*store.PaginatedResponse[store.WorkspaceWithRole], error)
 	UpdateWorkspace(ctx context.Context, userID, workspaceID uuid.UUID, name string) (*store.Workspace, error)
 	DeleteWorkspace(ctx context.Context, userID, workspaceID uuid.UUID) error
 	AddMember(ctx context.Context, requesterID, workspaceID, targetUserID uuid.UUID, role string) (*store.WorkspaceMember, error)
 	AddMemberByEmail(ctx context.Context, requesterID, workspaceID uuid.UUID, email, role string) (*store.WorkspaceMember, error)
 	RemoveMember(ctx context.Context, requesterID, workspaceID, targetUserID uuid.UUID) error
-	GetMembers(ctx context.Context, userID, workspaceID uuid.UUID, pagination store.PaginationParams) ([]store.WorkspaceMember, error)
+	GetMembers(ctx context.Context, userID, workspaceID uuid.UUID, filters store.FilterParams) (*store.PaginatedResponse[store.WorkspaceMember], error)
 	UploadAvatar(ctx context.Context, userID, workspaceID uuid.UUID, reader io.Reader, size int64, contentType string) (string, error)
 }
 
@@ -75,8 +75,8 @@ func (s *WorkspaceService) GetWorkspace(ctx context.Context, userID, workspaceID
 	return s.store.Workspaces.GetWorkspaceByID(ctx, workspaceID)
 }
 
-func (s *WorkspaceService) GetMyWorkspaces(ctx context.Context, userID uuid.UUID, pagination store.PaginationParams) (*store.PaginatedResponse[store.WorkspaceWithRole], error) {
-	workspaces, total, err := s.store.Workspaces.GetUserWorkspaces(ctx, userID, pagination)
+func (s *WorkspaceService) GetMyWorkspaces(ctx context.Context, userID uuid.UUID, filters store.FilterParams) (*store.PaginatedResponse[store.WorkspaceWithRole], error) {
+	workspaces, total, err := s.store.Workspaces.GetUserWorkspaces(ctx, userID, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +84,14 @@ func (s *WorkspaceService) GetMyWorkspaces(ctx context.Context, userID uuid.UUID
 	return &store.PaginatedResponse[store.WorkspaceWithRole]{
 		Data: workspaces,
 		Pagination: store.PaginationInfo{
-			Limit:  pagination.Limit,
-			Offset: pagination.Offset,
+			Limit:  filters.Limit,
+			Offset: filters.Offset,
 			Total:  total,
+		},
+		Filters: store.FilterInfo{
+			SortBy: filters.SortBy,
+			Order:  filters.Order,
+			Search: filters.Search,
 		},
 	}, nil
 }
@@ -206,7 +211,7 @@ func (s *WorkspaceService) RemoveMember(ctx context.Context, requesterID, worksp
 	return s.store.Workspaces.RemoveWorkspaceMember(ctx, workspaceID, targetUserID)
 }
 
-func (s *WorkspaceService) GetMembers(ctx context.Context, userID, workspaceID uuid.UUID, pagination store.PaginationParams) ([]store.WorkspaceMember, error) {
+func (s *WorkspaceService) GetMembers(ctx context.Context, userID, workspaceID uuid.UUID, filters store.FilterParams) (*store.PaginatedResponse[store.WorkspaceMember], error) {
 	_, err := s.store.Workspaces.GetWorkspaceMemberRole(ctx, workspaceID, userID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotMember) {
@@ -215,7 +220,24 @@ func (s *WorkspaceService) GetMembers(ctx context.Context, userID, workspaceID u
 		return nil, err
 	}
 
-	return s.store.Workspaces.GetWorkspaceMembers(ctx, workspaceID, pagination)
+	members, total, err := s.store.Workspaces.GetWorkspaceMembers(ctx, workspaceID, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	return &store.PaginatedResponse[store.WorkspaceMember]{
+		Data: members,
+		Pagination: store.PaginationInfo{
+			Limit:  filters.Limit,
+			Offset: filters.Offset,
+			Total:  total,
+		},
+		Filters: store.FilterInfo{
+			SortBy: filters.SortBy,
+			Order:  filters.Order,
+			Search: filters.Search,
+		},
+	}, nil
 }
 
 func (s *WorkspaceService) UploadAvatar(ctx context.Context, userID, workspaceID uuid.UUID, reader io.Reader, size int64, contentType string) (string, error) {

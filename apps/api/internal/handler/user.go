@@ -150,13 +150,16 @@ func (h *UserHandler) UploadAvatar(c *gin.Context) {
 
 // GetSessions godoc
 // @Summary      List sessions
-// @Description  List all active sessions for the user with pagination
+// @Description  List all active sessions for the user with filtering, sorting, and pagination
 // @Tags         user
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        limit   query     int     false  "Limit (default 20, max 100)"
-// @Param        offset  query     int     false  "Offset (default 0)"
+// @Param        limit    query     int     false  "Limit (default 20, max 100)"
+// @Param        offset   query     int     false  "Offset (default 0)"
+// @Param        sort_by  query     string  false  "Sort by: created_at, expires_at (default: created_at)"
+// @Param        order    query     string  false  "Order: asc, desc (default: desc)"
+// @Param        search   query     string  false  "Search in IP address or user agent"
 // @Success      200  {object}  store.PaginatedResponse[store.Session]
 // @Failure      401  {object}  apperr.AppError
 // @Failure      500  {object}  apperr.AppError
@@ -168,12 +171,12 @@ func (h *UserHandler) GetSessions(c *gin.Context) {
 		return
 	}
 
-	pagination := store.DefaultPagination()
-	if err := c.ShouldBindQuery(&pagination); err == nil {
-		pagination.Normalize()
+	filters := store.DefaultFilter()
+	if err := c.ShouldBindQuery(&filters); err == nil {
+		filters.Normalize()
 	}
 
-	sessions, err := h.service.GetSessions(c.Request.Context(), userId, pagination)
+	sessions, err := h.service.GetSessions(c.Request.Context(), userId, filters)
 	if err != nil {
 		c.Error(apperr.Internal(err))
 		return

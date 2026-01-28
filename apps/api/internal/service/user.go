@@ -14,7 +14,7 @@ import (
 type User interface {
 	GetUser(ctx context.Context, id uuid.UUID) (*store.User, error)
 	UpdateProfile(ctx context.Context, userID uuid.UUID, input UpdateProfileInput) (*store.User, error)
-	GetSessions(ctx context.Context, userID uuid.UUID, pagination store.PaginationParams) (*store.PaginatedResponse[store.Session], error)
+	GetSessions(ctx context.Context, userID uuid.UUID, filters store.FilterParams) (*store.PaginatedResponse[store.Session], error)
 	RevokeSession(ctx context.Context, userID, sessionID uuid.UUID) error
 	UploadAvatar(ctx context.Context, userID uuid.UUID, reader io.Reader, size int64, contentType string) (string, error)
 }
@@ -99,8 +99,8 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uuid.UUID, input
 	return updatedUser, nil
 }
 
-func (s *UserService) GetSessions(ctx context.Context, userID uuid.UUID, pagination store.PaginationParams) (*store.PaginatedResponse[store.Session], error) {
-	sessions, total, err := s.store.Sessions.GetSessionsByUserID(ctx, userID, pagination)
+func (s *UserService) GetSessions(ctx context.Context, userID uuid.UUID, filters store.FilterParams) (*store.PaginatedResponse[store.Session], error) {
+	sessions, total, err := s.store.Sessions.GetSessionsByUserID(ctx, userID, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +108,14 @@ func (s *UserService) GetSessions(ctx context.Context, userID uuid.UUID, paginat
 	return &store.PaginatedResponse[store.Session]{
 		Data: sessions,
 		Pagination: store.PaginationInfo{
-			Limit:  pagination.Limit,
-			Offset: pagination.Offset,
+			Limit:  filters.Limit,
+			Offset: filters.Offset,
 			Total:  total,
+		},
+		Filters: store.FilterInfo{
+			SortBy: filters.SortBy,
+			Order:  filters.Order,
+			Search: filters.Search,
 		},
 	}, nil
 }

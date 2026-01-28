@@ -5,49 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
-
-type PaginationParams struct {
-	Limit  int32 `json:"limit" query:"limit"`
-	Offset int32 `json:"offset" query:"offset"`
-}
-
-func DefaultPagination() PaginationParams {
-	return PaginationParams{
-		Limit:  20,
-		Offset: 0,
-	}
-}
-
-func (p *PaginationParams) Normalize() {
-	if p.Limit <= 0 {
-		p.Limit = 20
-	}
-	if p.Limit > 100 {
-		p.Limit = 100
-	}
-	if p.Offset < 0 {
-		p.Offset = 0
-	}
-}
-
-type PaginatedResponse[T any] struct {
-	Data       []T            `json:"data"`
-	Pagination PaginationInfo `json:"pagination"`
-}
-
-type PaginationInfo struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
-	Total  int64 `json:"total"`
-}
-
-type ListSessionsFilter struct {
-	UserID uuid.UUID
-	PaginationParams
-}
 
 type DBTX interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)

@@ -18,8 +18,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port        string
-	Environment string
+	Port                    string
+	Environment             string
+	EnableOpenAPIValidation bool
 }
 
 type DatabaseConfig struct {
@@ -74,6 +75,7 @@ func Load() (*Config, error) {
 
 	viper.SetDefault("SERVER_PORT", "8080")
 	viper.SetDefault("SERVER_ENVIRONMENT", "development")
+	viper.SetDefault("ENABLE_OPENAPI_VALIDATION", false)
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
 	viper.SetDefault("DB_USER", "artemis")
@@ -121,8 +123,9 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Port:        viper.GetString("SERVER_PORT"),
-			Environment: viper.GetString("SERVER_ENVIRONMENT"),
+			Port:                    viper.GetString("SERVER_PORT"),
+			Environment:             viper.GetString("SERVER_ENVIRONMENT"),
+			EnableOpenAPIValidation: viper.GetBool("ENABLE_OPENAPI_VALIDATION"),
 		},
 		Database: DatabaseConfig{
 			Host:            viper.GetString("DB_HOST"),

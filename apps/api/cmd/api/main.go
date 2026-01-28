@@ -65,12 +65,14 @@ func main() {
 	userCache := cache.New(keydbClient, 15*time.Minute, log)
 
 	r := router.New(router.Config{
-		Store:       st,
-		Cache:       userCache,
-		Storage:     minioClient,
-		TokenMaker:  tokenMaker,
-		TokenConfig: cfg.Token,
-		Logger:      log,
+		Store:                   st,
+		Cache:                   userCache,
+		Storage:                 minioClient,
+		TokenMaker:              tokenMaker,
+		TokenConfig:             cfg.Token,
+		Logger:                  log,
+		Environment:             cfg.Server.Environment,
+		EnableOpenAPIValidation: cfg.Server.EnableOpenAPIValidation,
 	})
 
 	srv := &http.Server{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,7 +34,7 @@ type SessionRepository interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (*Session, error)
 	GetSessionByID(ctx context.Context, id uuid.UUID) (*Session, error)
 	GetSessionByToken(ctx context.Context, refreshToken string) (*Session, error)
-	GetSessionsByUserID(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]Session, int64, error)
+	GetSessionsByUserID(ctx context.Context, userID uuid.UUID, filters FilterParams) ([]Session, int64, error)
 	DeleteSession(ctx context.Context, id uuid.UUID) error
 	DeleteSessionByToken(ctx context.Context, refreshToken string) error
 	DeleteSessionsByUserID(ctx context.Context, userID uuid.UUID) error
@@ -89,17 +90,44 @@ func (r *sessionRepository) GetSessionByToken(ctx context.Context, refreshToken 
 	return &session, nil
 }
 
-func (r *sessionRepository) GetSessionsByUserID(ctx context.Context, userID uuid.UUID, pagination PaginationParams) ([]Session, int64, error) {
+func (r *sessionRepository) GetSessionsByUserID(ctx context.Context, userID uuid.UUID, filters FilterParams) ([]Session, int64, error) {
 	var sessions []Session
-	query := `SELECT * FROM sessions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-	err := r.db.SelectContext(ctx, &sessions, query, userID, pagination.Limit, pagination.Offset)
+	var args []any
+	argPos := 1
+
+	baseQuery := `SELECT * FROM sessions WHERE user_id = $` + fmt.Sprintf("%d", argPos)
+	args = append(args, userID)
+	argPos++
+
+	if filters.HasSearch() {
+		baseQuery += fmt.Sprintf(` AND (ip_address ILIKE $%d OR user_agent ILIKE $%d)`, argPos, argPos)
+		args = append(args, filters.GetSearchPattern())
+		argPos++
+	}
+
+	baseQuery += " " + filters.GetSortClause("created_at")
+
+	baseQuery += fmt.Sprintf(` LIMIT $%d OFFSET $%d`, argPos, argPos+1)
+	args = append(args, filters.Limit, filters.Offset)
+
+	err := r.db.SelectContext(ctx, &sessions, baseQuery, args...)
 	if err != nil {
 		return nil, 0, err
 	}
 
+	var totalArgs []any
+	totalArgPos := 1
+	countQuery := `SELECT COUNT(*) FROM sessions WHERE user_id = $` + fmt.Sprintf("%d", totalArgPos)
+	totalArgs = append(totalArgs, userID)
+	totalArgPos++
+
+	if filters.HasSearch() {
+		countQuery += fmt.Sprintf(` AND (ip_address ILIKE $%d OR user_agent ILIKE $%d)`, totalArgPos, totalArgPos)
+		totalArgs = append(totalArgs, filters.GetSearchPattern())
+	}
+
 	var total int64
-	countQuery := `SELECT COUNT(*) FROM sessions WHERE user_id = $1`
-	err = r.db.GetContext(ctx, &total, countQuery, userID)
+	err = r.db.GetContext(ctx, &total, countQuery, totalArgs...)
 	if err != nil {
 		return nil, 0, err
 	}
