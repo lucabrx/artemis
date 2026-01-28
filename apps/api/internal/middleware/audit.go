@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"regexp"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -58,9 +59,49 @@ func (m *AuditMiddleware) logAction(c *gin.Context, userID *uuid.UUID, bodyBytes
 	var newVal any
 	if len(bodyBytes) > 0 {
 		json.Unmarshal(bodyBytes, &newVal)
+		newVal = sanitizeSensitiveData(newVal)
 	}
 
 	m.logger.Log(ctx, userID, action, entityType, entityID, nil, newVal, c.ClientIP(), c.Request.UserAgent())
+}
+
+var sensitiveFields = []string{"password", "token", "secret", "api_key", "apikey", "access_token", "refresh_token", "credential"}
+
+func sanitizeSensitiveData(data any) any {
+	if data == nil {
+		return nil
+	}
+
+	switch v := data.(type) {
+	case map[string]any:
+		result := make(map[string]any)
+		for key, val := range v {
+			if isSensitiveField(key) {
+				result[key] = "[REDACTED]"
+			} else {
+				result[key] = sanitizeSensitiveData(val)
+			}
+		}
+		return result
+	case []any:
+		result := make([]any, len(v))
+		for i, val := range v {
+			result[i] = sanitizeSensitiveData(val)
+		}
+		return result
+	default:
+		return v
+	}
+}
+
+func isSensitiveField(field string) bool {
+	lowerField := strings.ToLower(field)
+	for _, sensitive := range sensitiveFields {
+		if lowerField == sensitive || strings.Contains(lowerField, sensitive) {
+			return true
+		}
+	}
+	return false
 }
 
 func extractActionAndEntity(c *gin.Context) (audit.Action, string, string) {

@@ -55,6 +55,10 @@ func (b *Bus) Close() {
 }
 
 func (b *Bus) Publish(ctx context.Context, eventType EventType, userID uuid.UUID, payload any) error {
+	if b == nil || b.conn == nil {
+		return nil
+	}
+
 	event := Event{
 		ID:        uuid.New().String(),
 		Type:      eventType,
@@ -83,6 +87,10 @@ func (b *Bus) Publish(ctx context.Context, eventType EventType, userID uuid.UUID
 }
 
 func (b *Bus) Subscribe(eventType EventType, handler func(*Event) error) (*nats.Subscription, error) {
+	if b == nil || b.conn == nil {
+		return nil, fmt.Errorf("event bus not connected")
+	}
+
 	subject := fmt.Sprintf("artemis.%s", eventType)
 	sub, err := b.conn.Subscribe(subject, func(msg *nats.Msg) {
 		var event Event
