@@ -105,54 +105,92 @@ definitions:
     - name
     type: object
   store.FilterInfo:
+    description: Active filter and sorting parameters
     properties:
       order:
+        example: desc
         type: string
       search:
+        example: john
         type: string
       sort_by:
+        example: created_at
         type: string
     type: object
   store.PaginatedMembersResponse:
+    description: Paginated response containing workspace member data
     properties:
       data:
+        description: List of workspace members
         items:
           $ref: '#/definitions/store.WorkspaceMember'
         type: array
       filters:
-        $ref: '#/definitions/store.FilterInfo'
+        allOf:
+        - $ref: '#/definitions/store.FilterInfo'
+        description: Applied filters
       pagination:
-        $ref: '#/definitions/store.PaginationInfo'
+        allOf:
+        - $ref: '#/definitions/store.PaginationInfo'
+        description: Pagination metadata
     type: object
   store.PaginatedSessionsResponse:
+    description: Paginated response containing user session data
     properties:
       data:
+        description: List of user sessions
         items:
           $ref: '#/definitions/store.Session'
         type: array
       filters:
-        $ref: '#/definitions/store.FilterInfo'
+        allOf:
+        - $ref: '#/definitions/store.FilterInfo'
+        description: Applied filters
       pagination:
-        $ref: '#/definitions/store.PaginationInfo'
+        allOf:
+        - $ref: '#/definitions/store.PaginationInfo'
+        description: Pagination metadata
     type: object
   store.PaginatedWorkspacesResponse:
+    description: Paginated response containing workspace data with user roles
     properties:
       data:
+        description: List of workspaces with user roles
         items:
           $ref: '#/definitions/store.WorkspaceWithRole'
         type: array
       filters:
-        $ref: '#/definitions/store.FilterInfo'
+        allOf:
+        - $ref: '#/definitions/store.FilterInfo'
+        description: Applied filters
       pagination:
-        $ref: '#/definitions/store.PaginationInfo'
+        allOf:
+        - $ref: '#/definitions/store.PaginationInfo'
+        description: Pagination metadata
     type: object
   store.PaginationInfo:
+    description: Pagination metadata including current page info and totals
     properties:
+      current_page:
+        example: 1
+        type: integer
+      has_next_page:
+        example: true
+        type: boolean
+      has_prev_page:
+        example: false
+        type: boolean
+      last_page:
+        example: 5
+        type: integer
       limit:
+        example: 20
         type: integer
       offset:
+        example: 0
         type: integer
-      total:
+      total_records:
+        example: 100
         type: integer
     type: object
   store.Session:

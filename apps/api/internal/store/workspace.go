@@ -36,8 +36,6 @@ type WorkspaceMember struct {
 	DeletedAt   *time.Time `json:"-" db:"deleted_at"`
 }
 
-
-
 type WorkspaceWithRole struct {
 	Workspace
 	Role string `json:"role" db:"role"`
@@ -150,7 +148,7 @@ func (r *workspaceRepository) AddWorkspaceMember(ctx context.Context, workspaceI
 	query := `
 		INSERT INTO workspace_members (workspace_id, user_id, role)
 		VALUES ($1, $2, $3)
-		ON CONFLICT (workspace_id, user_id) 
+		ON CONFLICT (workspace_id, user_id)
 		DO UPDATE SET role = $3, deleted_at = NULL
 	`
 	_, err := r.db.ExecContext(ctx, query, workspaceID, userID, role)
@@ -177,11 +175,12 @@ func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspace
 	}
 
 	sortBy := filters.SortBy
-	if sortBy == "name" || sortBy == "email" {
+	switch sortBy {
+	case "name", "email":
 		sortBy = "u." + sortBy
-	} else if sortBy == "joined_at" || sortBy == "role" {
+	case "joined_at", "role":
 		sortBy = "wm." + sortBy
-	} else {
+	default:
 		sortBy = "wm.joined_at"
 	}
 	baseQuery += fmt.Sprintf(` ORDER BY %s %s`, sortBy, filters.Order)
@@ -250,13 +249,14 @@ func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid
 	}
 
 	sortBy := filters.SortBy
-	if sortBy == "name" {
+	switch sortBy {
+	case "name":
 		sortBy = "w.name"
-	} else if sortBy == "role" {
+	case "role":
 		sortBy = "wm.role"
-	} else if sortBy == "updated_at" {
+	case "updated_at":
 		sortBy = "w.updated_at"
-	} else {
+	default:
 		sortBy = "w.created_at"
 	}
 	baseQuery += fmt.Sprintf(` ORDER BY %s %s`, sortBy, filters.Order)

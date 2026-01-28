@@ -97,19 +97,7 @@ func (s *WorkspaceService) GetMyWorkspaces(ctx context.Context, userID uuid.UUID
 		return nil, err
 	}
 
-	return &store.PaginatedResponse[store.WorkspaceWithRole]{
-		Data: workspaces,
-		Pagination: store.PaginationInfo{
-			Limit:  filters.Limit,
-			Offset: filters.Offset,
-			Total:  total,
-		},
-		Filters: store.FilterInfo{
-			SortBy: filters.SortBy,
-			Order:  filters.Order,
-			Search: filters.Search,
-		},
-	}, nil
+	return store.BuildFilterResponse(workspaces, total, filters), nil
 }
 
 func (s *WorkspaceService) UpdateWorkspace(ctx context.Context, userID, workspaceID uuid.UUID, name string) (*store.Workspace, error) {
@@ -269,19 +257,7 @@ func (s *WorkspaceService) GetMembers(ctx context.Context, userID, workspaceID u
 		return nil, err
 	}
 
-	return &store.PaginatedResponse[store.WorkspaceMember]{
-		Data: members,
-		Pagination: store.PaginationInfo{
-			Limit:  filters.Limit,
-			Offset: filters.Offset,
-			Total:  total,
-		},
-		Filters: store.FilterInfo{
-			SortBy: filters.SortBy,
-			Order:  filters.Order,
-			Search: filters.Search,
-		},
-	}, nil
+	return store.BuildFilterResponse(members, total, filters), nil
 }
 
 func (s *WorkspaceService) UploadAvatar(ctx context.Context, userID, workspaceID uuid.UUID, reader io.Reader, size int64, contentType string) (string, error) {

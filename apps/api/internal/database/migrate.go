@@ -39,11 +39,11 @@ func getMigrationsPath() string {
 	_, b, _, _ := runtime.Caller(0)
 	basePath := filepath.Dir(b)
 	migrationsDir := filepath.Join(basePath, "..", "..", "migrations")
-	
+
 	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
 		return "migrations"
 	}
-	
+
 	absPath, _ := filepath.Abs(migrationsDir)
 	return absPath
 }

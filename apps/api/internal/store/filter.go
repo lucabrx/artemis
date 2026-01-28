@@ -13,7 +13,6 @@ const (
 )
 
 type FilterParams struct {
-	// Pagination
 	Limit  int32 `json:"limit" query:"limit"`
 	Offset int32 `json:"offset" query:"offset"`
 
@@ -103,31 +102,59 @@ func (f *FilterParams) GetSearchPattern() string {
 	return "%" + strings.ToLower(strings.TrimSpace(f.Search)) + "%"
 }
 
+// PaginatedResponse is a generic wrapper for paginated list responses
+// @Description Generic paginated response containing data and pagination metadata
 type PaginatedResponse[T any] struct {
 	Data       []T            `json:"data"`
 	Pagination PaginationInfo `json:"pagination"`
 	Filters    FilterInfo     `json:"filters"`
 }
 
+// PaginationInfo contains pagination metadata for paginated responses
+// @Description Pagination metadata including current page info and totals
 type PaginationInfo struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
-	Total  int64 `json:"total"`
+	Limit         int32 `json:"limit" example:"20"`
+	Offset        int32 `json:"offset" example:"0"`
+	TotalRecords  int64 `json:"total_records" example:"100"`
+	LastPage      int32 `json:"last_page" example:"5"`
+	CurrentPage   int32 `json:"current_page" example:"1"`
+	HasNextPage   bool  `json:"has_next_page" example:"true"`
+	HasPrevPage   bool  `json:"has_prev_page" example:"false"`
 }
 
+// FilterInfo contains the active filter parameters used for the query
+// @Description Active filter and sorting parameters
 type FilterInfo struct {
-	SortBy string `json:"sort_by"`
-	Order  string `json:"order"`
-	Search string `json:"search,omitempty"`
+	SortBy string `json:"sort_by" example:"created_at"`
+	Order  string `json:"order" example:"desc"`
+	Search string `json:"search,omitempty" example:"john"`
 }
 
-func BuildFilterResponse[T any](data []T, total int64, filters FilterParams) PaginatedResponse[T] {
-	return PaginatedResponse[T]{
+func BuildFilterResponse[T any](data []T, total int64, filters FilterParams) *PaginatedResponse[T] {
+	// Calculate pagination metadata
+	limit := filters.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+
+	currentPage := int32(filters.Offset/limit) + 1
+	lastPage := int32((total + int64(limit) - 1) / int64(limit))
+	if lastPage < 1 {
+		lastPage = 1
+	}
+	hasNextPage := filters.Offset+limit < int32(total)
+	hasPrevPage := filters.Offset > 0
+
+	return &PaginatedResponse[T]{
 		Data: data,
 		Pagination: PaginationInfo{
-			Limit:  filters.Limit,
-			Offset: filters.Offset,
-			Total:  total,
+			Limit:        limit,
+			Offset:       filters.Offset,
+			TotalRecords: total,
+			LastPage:     lastPage,
+			CurrentPage:  currentPage,
+			HasNextPage:  hasNextPage,
+			HasPrevPage:  hasPrevPage,
 		},
 		Filters: FilterInfo{
 			SortBy: filters.SortBy,
@@ -137,21 +164,38 @@ func BuildFilterResponse[T any](data []T, total int64, filters FilterParams) Pag
 	}
 }
 
-// fu swagger
+// PaginatedSessionsResponse represents a paginated list of user sessions
+// @Description Paginated response containing user session data
+// swagger:model PaginatedSessionsResponse
 type PaginatedSessionsResponse struct {
-	Data       []Session      `json:"data"`
+	// List of user sessions
+	Data []Session `json:"data"`
+	// Pagination metadata
 	Pagination PaginationInfo `json:"pagination"`
-	Filters    FilterInfo     `json:"filters"`
+	// Applied filters
+	Filters FilterInfo `json:"filters"`
 }
 
+// PaginatedWorkspacesResponse represents a paginated list of workspaces
+// @Description Paginated response containing workspace data with user roles
+// swagger:model PaginatedWorkspacesResponse
 type PaginatedWorkspacesResponse struct {
-	Data       []WorkspaceWithRole `json:"data"`
-	Pagination PaginationInfo      `json:"pagination"`
-	Filters    FilterInfo          `json:"filters"`
+	// List of workspaces with user roles
+	Data []WorkspaceWithRole `json:"data"`
+	// Pagination metadata
+	Pagination PaginationInfo `json:"pagination"`
+	// Applied filters
+	Filters FilterInfo `json:"filters"`
 }
 
+// PaginatedMembersResponse represents a paginated list of workspace members
+// @Description Paginated response containing workspace member data
+// swagger:model PaginatedMembersResponse
 type PaginatedMembersResponse struct {
-	Data       []WorkspaceMember `json:"data"`
-	Pagination PaginationInfo    `json:"pagination"`
-	Filters    FilterInfo        `json:"filters"`
+	// List of workspace members
+	Data []WorkspaceMember `json:"data"`
+	// Pagination metadata
+	Pagination PaginationInfo `json:"pagination"`
+	// Applied filters
+	Filters FilterInfo `json:"filters"`
 }

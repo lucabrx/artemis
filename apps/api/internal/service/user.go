@@ -108,19 +108,7 @@ func (s *UserService) GetSessions(ctx context.Context, userID uuid.UUID, filters
 		return nil, err
 	}
 
-	return &store.PaginatedResponse[store.Session]{
-		Data: sessions,
-		Pagination: store.PaginationInfo{
-			Limit:  filters.Limit,
-			Offset: filters.Offset,
-			Total:  total,
-		},
-		Filters: store.FilterInfo{
-			SortBy: filters.SortBy,
-			Order:  filters.Order,
-			Search: filters.Search,
-		},
-	}, nil
+	return store.BuildFilterResponse(sessions, total, filters), nil
 }
 
 func (s *UserService) RevokeSession(ctx context.Context, userID, sessionID uuid.UUID) error {
