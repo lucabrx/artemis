@@ -12,13 +12,14 @@ import (
 var ErrUserNotFound = errors.New("user not found")
 
 type User struct {
-	ID           uuid.UUID `json:"id" db:"id"`
-	Email        *string   `json:"email" db:"email"`
-	PasswordHash string    `json:"-" db:"password_hash"`
-	Name         string    `json:"name" db:"name"`
-	AvatarURL    *string   `json:"avatar_url" db:"avatar_url"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	ID           uuid.UUID  `json:"id" db:"id"`
+	Email        *string    `json:"email" db:"email"`
+	PasswordHash string     `json:"-" db:"password_hash"`
+	Name         string     `json:"name" db:"name"`
+	AvatarURL    *string    `json:"avatar_url" db:"avatar_url"`
+	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt    *time.Time `json:"-" db:"deleted_at"`
 }
 
 type CreateUserParams struct {
@@ -57,7 +58,7 @@ func (r *userRepository) CreateUser(ctx context.Context, arg CreateUserParams) (
 	query := `
 		INSERT INTO users (email, password_hash, name, avatar_url)
 		VALUES ($1, $2, $3, $4)
-		RETURNING id, email, password_hash, name, avatar_url, created_at, updated_at
+		RETURNING id, email, password_hash, name, avatar_url, created_at, updated_at, deleted_at
 	`
 	err := r.db.GetContext(ctx, user, query, arg.Email, arg.PasswordHash, arg.Name, arg.AvatarURL)
 	if err != nil {
@@ -68,7 +69,7 @@ func (r *userRepository) CreateUser(ctx context.Context, arg CreateUserParams) (
 
 func (r *userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var user User
-	query := `SELECT * FROM users WHERE id = $1`
+	query := `SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL`
 	err := r.db.GetContext(ctx, &user, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -81,7 +82,7 @@ func (r *userRepository) GetUserByID(ctx context.Context, id uuid.UUID) (*User, 
 
 func (r *userRepository) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
-	query := `SELECT * FROM users WHERE email = $1`
+	query := `SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL`
 	err := r.db.GetContext(ctx, &user, query, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -97,8 +98,8 @@ func (r *userRepository) UpdateUser(ctx context.Context, arg UpdateUserParams) (
 	query := `
 		UPDATE users 
 		SET email = $1, name = $2, avatar_url = $3, password_hash = $4, updated_at = NOW()
-		WHERE id = $5
-		RETURNING id, email, password_hash, name, avatar_url, created_at, updated_at
+		WHERE id = $5 AND deleted_at IS NULL
+		RETURNING id, email, password_hash, name, avatar_url, created_at, updated_at, deleted_at
 	`
 	err := r.db.GetContext(ctx, &user, query, arg.Email, arg.Name, arg.AvatarURL, arg.PasswordHash, arg.ID)
 	if err != nil {
@@ -111,7 +112,14 @@ func (r *userRepository) UpdateUser(ctx context.Context, arg UpdateUserParams) (
 }
 
 func (r *userRepository) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM users WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, id)
-	return err
+	query := `UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrUserNotFound
+	}
+	return nil
 }

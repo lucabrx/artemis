@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lukabrkovic/artemis/internal/metrics"
 	"github.com/lukabrkovic/artemis/internal/store"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
@@ -42,18 +43,22 @@ func (c *Cache) GetUser(ctx context.Context, id uuid.UUID) (*store.User, error) 
 	data, err := c.client.Get(ctx, c.userKey(id)).Bytes()
 	if err != nil {
 		if err == redis.Nil {
+			metrics.RecordCacheMiss("user")
 			return nil, nil
 		}
 		c.logger.Warn().Err(err).Str("user_id", id.String()).Msg("failed to get user from cache")
+		metrics.RecordCacheMiss("user")
 		return nil, err
 	}
 
 	var user store.User
 	if err := json.Unmarshal(data, &user); err != nil {
 		c.logger.Error().Err(err).Str("user_id", id.String()).Msg("failed to unmarshal user from cache")
+		metrics.RecordCacheMiss("user")
 		return nil, err
 	}
 
+	metrics.RecordCacheHit("user")
 	return &user, nil
 }
 

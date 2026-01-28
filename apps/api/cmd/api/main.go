@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 	"github.com/lukabrkovic/artemis/internal/cache"
 	"github.com/lukabrkovic/artemis/internal/config"
 	"github.com/lukabrkovic/artemis/internal/database"
@@ -17,6 +18,7 @@ import (
 	"github.com/lukabrkovic/artemis/pkg/logger"
 	"github.com/lukabrkovic/artemis/pkg/storage"
 	"github.com/lukabrkovic/artemis/pkg/token"
+	"github.com/rs/zerolog"
 )
 
 // @title           Artemis API
@@ -41,6 +43,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := database.RunMigrations(db, cfg.Database, log); err != nil {
+		log.Fatal().Err(err).Msg("failed to run migrations")
+	}
+
 	keydbClient, err := database.NewRedis(cfg.Redis)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to keydb")
@@ -63,6 +69,8 @@ func main() {
 
 	st := store.New(db)
 	userCache := cache.New(keydbClient, 15*time.Minute, log)
+
+	go collectDBStats(db, log)
 
 	r := router.New(router.Config{
 		Store:                   st,
@@ -104,4 +112,22 @@ func main() {
 	}
 
 	log.Info().Msg("server stopped")
+}
+
+func collectDBStats(db *sqlx.DB, log zerolog.Logger) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		stats := db.Stats()
+		log.Debug().
+			Int("open_connections", stats.OpenConnections).
+			Int("in_use", stats.InUse).
+			Int("idle", stats.Idle).
+			Int64("wait_count", stats.WaitCount).
+			Dur("wait_duration", stats.WaitDuration).
+			Int64("max_idle_closed", stats.MaxIdleClosed).
+			Int64("max_lifetime_closed", stats.MaxLifetimeClosed).
+			Msg("database stats")
+	}
 }

@@ -17,22 +17,26 @@ var (
 )
 
 type Workspace struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	Name      string    `json:"name" db:"name"`
-	AvatarURL *string   `json:"avatar_url" db:"avatar_url"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID        uuid.UUID  `json:"id" db:"id"`
+	Name      string     `json:"name" db:"name"`
+	AvatarURL *string    `json:"avatar_url" db:"avatar_url"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt *time.Time `json:"-" db:"deleted_at"`
 }
 
 type WorkspaceMember struct {
-	WorkspaceID uuid.UUID `json:"workspace_id" db:"workspace_id"`
-	UserID      uuid.UUID `json:"user_id" db:"user_id"`
-	Role        string    `json:"role" db:"role"`
-	JoinedAt    time.Time `json:"joined_at" db:"joined_at"`
-	Name        string    `json:"name" db:"name"`
-	Email       string    `json:"email" db:"email"`
-	AvatarURL   *string   `json:"avatar_url" db:"avatar_url"`
+	WorkspaceID uuid.UUID  `json:"workspace_id" db:"workspace_id"`
+	UserID      uuid.UUID  `json:"user_id" db:"user_id"`
+	Role        string     `json:"role" db:"role"`
+	JoinedAt    time.Time  `json:"joined_at" db:"joined_at"`
+	Name        string     `json:"name" db:"name"`
+	Email       string     `json:"email" db:"email"`
+	AvatarURL   *string    `json:"avatar_url" db:"avatar_url"`
+	DeletedAt   *time.Time `json:"-" db:"deleted_at"`
 }
+
+
 
 type WorkspaceWithRole struct {
 	Workspace
@@ -71,7 +75,7 @@ func (r *workspaceRepository) CreateWorkspace(ctx context.Context, arg CreateWor
 	query := `
 		INSERT INTO workspaces (name, avatar_url)
 		VALUES ($1, $2)
-		RETURNING id, name, avatar_url, created_at, updated_at
+		RETURNING id, name, avatar_url, created_at, updated_at, deleted_at
 	`
 	err := r.db.GetContext(ctx, workspace, query, arg.Name, arg.AvatarURL)
 	if err != nil {
@@ -82,7 +86,7 @@ func (r *workspaceRepository) CreateWorkspace(ctx context.Context, arg CreateWor
 
 func (r *workspaceRepository) GetWorkspaceByID(ctx context.Context, id uuid.UUID) (*Workspace, error) {
 	var workspace Workspace
-	query := `SELECT * FROM workspaces WHERE id = $1`
+	query := `SELECT * FROM workspaces WHERE id = $1 AND deleted_at IS NULL`
 	err := r.db.GetContext(ctx, &workspace, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -98,8 +102,8 @@ func (r *workspaceRepository) UpdateWorkspace(ctx context.Context, id uuid.UUID,
 	query := `
 		UPDATE workspaces
 		SET name = $1, updated_at = NOW()
-		WHERE id = $2
-		RETURNING id, name, avatar_url, created_at, updated_at
+		WHERE id = $2 AND deleted_at IS NULL
+		RETURNING id, name, avatar_url, created_at, updated_at, deleted_at
 	`
 	err := r.db.GetContext(ctx, &workspace, query, name, id)
 	if err != nil {
@@ -116,8 +120,8 @@ func (r *workspaceRepository) UpdateWorkspaceAvatar(ctx context.Context, id uuid
 	query := `
 		UPDATE workspaces
 		SET avatar_url = $1, updated_at = NOW()
-		WHERE id = $2
-		RETURNING id, name, avatar_url, created_at, updated_at
+		WHERE id = $2 AND deleted_at IS NULL
+		RETURNING id, name, avatar_url, created_at, updated_at, deleted_at
 	`
 	err := r.db.GetContext(ctx, &workspace, query, avatarURL, id)
 	if err != nil {
@@ -130,15 +134,24 @@ func (r *workspaceRepository) UpdateWorkspaceAvatar(ctx context.Context, id uuid
 }
 
 func (r *workspaceRepository) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM workspaces WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, id)
-	return err
+	query := `UPDATE workspaces SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return ErrWorkspaceNotFound
+	}
+	return nil
 }
 
 func (r *workspaceRepository) AddWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID, role string) error {
 	query := `
 		INSERT INTO workspace_members (workspace_id, user_id, role)
 		VALUES ($1, $2, $3)
+		ON CONFLICT (workspace_id, user_id) 
+		DO UPDATE SET role = $3, deleted_at = NULL
 	`
 	_, err := r.db.ExecContext(ctx, query, workspaceID, userID, role)
 	return err
@@ -153,7 +166,7 @@ func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspace
 		SELECT wm.*, u.name, u.email, u.avatar_url
 		FROM workspace_members wm
 		JOIN users u ON wm.user_id = u.id
-		WHERE wm.workspace_id = $` + fmt.Sprintf("%d", argPos)
+		WHERE wm.workspace_id = $` + fmt.Sprintf("%d", argPos) + ` AND wm.deleted_at IS NULL AND u.deleted_at IS NULL`
 	args = append(args, workspaceID)
 	argPos++
 
@@ -183,7 +196,7 @@ func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspace
 
 	var totalArgs []any
 	totalArgPos := 1
-	countQuery := `SELECT COUNT(*) FROM workspace_members wm JOIN users u ON wm.user_id = u.id WHERE wm.workspace_id = $` + fmt.Sprintf("%d", totalArgPos)
+	countQuery := `SELECT COUNT(*) FROM workspace_members wm JOIN users u ON wm.user_id = u.id WHERE wm.workspace_id = $` + fmt.Sprintf("%d", totalArgPos) + ` AND wm.deleted_at IS NULL AND u.deleted_at IS NULL`
 	totalArgs = append(totalArgs, workspaceID)
 	totalArgPos++
 
@@ -202,7 +215,7 @@ func (r *workspaceRepository) GetWorkspaceMembers(ctx context.Context, workspace
 }
 
 func (r *workspaceRepository) RemoveWorkspaceMember(ctx context.Context, workspaceID, userID uuid.UUID) error {
-	query := `DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`
+	query := `UPDATE workspace_members SET deleted_at = NOW() WHERE workspace_id = $1 AND user_id = $2 AND deleted_at IS NULL`
 	result, err := r.db.ExecContext(ctx, query, workspaceID, userID)
 	if err != nil {
 		return err
@@ -226,7 +239,7 @@ func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid
 		SELECT w.*, wm.role
 		FROM workspaces w
 		JOIN workspace_members wm ON w.id = wm.workspace_id
-		WHERE wm.user_id = $` + fmt.Sprintf("%d", argPos)
+		WHERE wm.user_id = $` + fmt.Sprintf("%d", argPos) + ` AND w.deleted_at IS NULL AND wm.deleted_at IS NULL`
 	args = append(args, userID)
 	argPos++
 
@@ -258,7 +271,7 @@ func (r *workspaceRepository) GetUserWorkspaces(ctx context.Context, userID uuid
 
 	var totalArgs []any
 	totalArgPos := 1
-	countQuery := `SELECT COUNT(*) FROM workspace_members wm JOIN workspaces w ON w.id = wm.workspace_id WHERE wm.user_id = $` + fmt.Sprintf("%d", totalArgPos)
+	countQuery := `SELECT COUNT(*) FROM workspace_members wm JOIN workspaces w ON w.id = wm.workspace_id WHERE wm.user_id = $` + fmt.Sprintf("%d", totalArgPos) + ` AND w.deleted_at IS NULL AND wm.deleted_at IS NULL`
 	totalArgs = append(totalArgs, userID)
 	totalArgPos++
 
@@ -285,7 +298,7 @@ func (r *workspaceRepository) CountUserWorkspaces(ctx context.Context, userID uu
 
 func (r *workspaceRepository) GetWorkspaceMemberRole(ctx context.Context, workspaceID, userID uuid.UUID) (string, error) {
 	var role string
-	query := `SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`
+	query := `SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2 AND deleted_at IS NULL`
 	err := r.db.GetContext(ctx, &role, query, workspaceID, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
