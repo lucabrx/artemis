@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/google/uuid"
+	"github.com/lukabrkovic/artemis/internal/events"
 	"github.com/lukabrkovic/artemis/internal/store"
 	pkgstorage "github.com/lukabrkovic/artemis/pkg/storage"
 )
@@ -35,12 +36,13 @@ type Workspace interface {
 }
 
 type WorkspaceService struct {
-	store   *store.Store
-	storage pkgstorage.Provider
+	store     *store.Store
+	storage   pkgstorage.Provider
+	eventBus  EventPublisher
 }
 
-func NewWorkspaceService(store *store.Store, storage pkgstorage.Provider) *WorkspaceService {
-	return &WorkspaceService{store: store, storage: storage}
+func NewWorkspaceService(store *store.Store, storage pkgstorage.Provider, eventBus EventPublisher) *WorkspaceService {
+	return &WorkspaceService{store: store, storage: storage, eventBus: eventBus}
 }
 
 var _ Workspace = (*WorkspaceService)(nil)
@@ -59,6 +61,13 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, userID uuid.UUID
 
 		return tx.Workspaces.AddWorkspaceMember(ctx, workspace.ID, userID, "owner")
 	})
+
+	if err == nil && s.eventBus != nil {
+		s.eventBus.Publish(ctx, events.EventWorkspaceCreated, userID, map[string]any{
+			"workspace_id": workspace.ID,
+			"name":         workspace.Name,
+		})
+	}
 
 	return workspace, err
 }
@@ -125,7 +134,15 @@ func (s *WorkspaceService) DeleteWorkspace(ctx context.Context, userID, workspac
 		return ErrForbidden
 	}
 
-	return s.store.Workspaces.DeleteWorkspace(ctx, workspaceID)
+	err = s.store.Workspaces.DeleteWorkspace(ctx, workspaceID)
+
+	if err == nil && s.eventBus != nil {
+		s.eventBus.Publish(ctx, events.EventWorkspaceDeleted, userID, map[string]any{
+			"workspace_id": workspaceID,
+		})
+	}
+
+	return err
 }
 
 func (s *WorkspaceService) AddMember(ctx context.Context, requesterID, workspaceID, targetUserID uuid.UUID, role string) (*store.WorkspaceMember, error) {
@@ -163,6 +180,15 @@ func (s *WorkspaceService) AddMember(ctx context.Context, requesterID, workspace
 		Name:        user.Name,
 		Email:       *user.Email,
 		AvatarURL:   user.AvatarURL,
+	}
+
+	if s.eventBus != nil {
+		s.eventBus.Publish(ctx, events.EventMemberAdded, requesterID, map[string]any{
+			"workspace_id": workspaceID,
+			"user_id":      targetUserID,
+			"email":        user.Email,
+			"role":         role,
+		})
 	}
 
 	return member, nil
@@ -208,7 +234,18 @@ func (s *WorkspaceService) RemoveMember(ctx context.Context, requesterID, worksp
 		}
 	}
 
-	return s.store.Workspaces.RemoveWorkspaceMember(ctx, workspaceID, targetUserID)
+	if err := s.store.Workspaces.RemoveWorkspaceMember(ctx, workspaceID, targetUserID); err != nil {
+		return err
+	}
+
+	if s.eventBus != nil {
+		s.eventBus.Publish(ctx, events.EventMemberRemoved, requesterID, map[string]any{
+			"workspace_id": workspaceID,
+			"user_id":      targetUserID,
+		})
+	}
+
+	return nil
 }
 
 func (s *WorkspaceService) GetMembers(ctx context.Context, userID, workspaceID uuid.UUID, filters store.FilterParams) (*store.PaginatedResponse[store.WorkspaceMember], error) {
