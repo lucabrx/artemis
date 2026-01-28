@@ -10,9 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/lukabrkovic/artemis/internal/audit"
 	"github.com/lukabrkovic/artemis/internal/cache"
 	"github.com/lukabrkovic/artemis/internal/config"
 	"github.com/lukabrkovic/artemis/internal/database"
+	"github.com/lukabrkovic/artemis/internal/events"
 	"github.com/lukabrkovic/artemis/internal/router"
 	"github.com/lukabrkovic/artemis/internal/store"
 	"github.com/lukabrkovic/artemis/pkg/logger"
@@ -72,6 +74,16 @@ func main() {
 
 	go collectDBStats(db, log)
 
+	eventBus, err := events.NewBus(cfg.NATS.URL, log)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to connect to NATS, continuing without event publishing")
+		eventBus = nil
+	} else {
+		defer eventBus.Close()
+	}
+
+	auditLogger := audit.NewLogger(st.AuditLogs, log)
+
 	r := router.New(router.Config{
 		Store:                   st,
 		Cache:                   userCache,
@@ -81,6 +93,8 @@ func main() {
 		Logger:                  log,
 		Environment:             cfg.Server.Environment,
 		EnableOpenAPIValidation: cfg.Server.EnableOpenAPIValidation,
+		EventBus:                eventBus,
+		AuditLogger:             auditLogger,
 	})
 
 	srv := &http.Server{

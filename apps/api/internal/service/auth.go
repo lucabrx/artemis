@@ -5,8 +5,10 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lukabrkovic/artemis/internal/cache"
 	"github.com/lukabrkovic/artemis/internal/config"
+	"github.com/lukabrkovic/artemis/internal/events"
 	"github.com/lukabrkovic/artemis/internal/store"
 	"github.com/lukabrkovic/artemis/pkg/token"
 	"golang.org/x/crypto/bcrypt"
@@ -29,14 +31,20 @@ type AuthService struct {
 	cache       cache.UserCache
 	tokenMaker  token.Maker
 	tokenConfig config.TokenConfig
+	eventBus    EventPublisher
 }
 
-func NewAuthService(store *store.Store, cache cache.UserCache, tokenMaker token.Maker, tokenConfig config.TokenConfig) *AuthService {
+type EventPublisher interface {
+	Publish(ctx context.Context, eventType events.EventType, userID uuid.UUID, payload any) error
+}
+
+func NewAuthService(store *store.Store, cache cache.UserCache, tokenMaker token.Maker, tokenConfig config.TokenConfig, eventBus EventPublisher) *AuthService {
 	return &AuthService{
 		store:       store,
 		cache:       cache,
 		tokenMaker:  tokenMaker,
 		tokenConfig: tokenConfig,
+		eventBus:    eventBus,
 	}
 }
 
@@ -116,6 +124,14 @@ func (s *AuthService) Register(ctx context.Context, input RegisterInput, ip, use
 		return err
 	})
 
+	if err == nil && s.eventBus != nil {
+		s.eventBus.Publish(ctx, events.EventUserRegistered, result.User.ID, map[string]any{
+			"email": result.User.Email,
+			"name":  result.User.Name,
+			"ip":    ip,
+		})
+	}
+
 	return result, err
 }
 
@@ -144,6 +160,13 @@ func (s *AuthService) Login(ctx context.Context, input LoginInput, ip, userAgent
 		result, err = s.createAuthResult(ctx, tx, user, ip, userAgent)
 		return err
 	})
+
+	if err == nil && s.eventBus != nil {
+		s.eventBus.Publish(ctx, events.EventUserLoggedIn, user.ID, map[string]any{
+			"email": user.Email,
+			"ip":    ip,
+		})
+	}
 
 	return result, err
 }

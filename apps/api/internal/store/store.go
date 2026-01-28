@@ -19,6 +19,7 @@ type Store struct {
 	Users      UserRepository
 	Sessions   SessionRepository
 	Workspaces WorkspaceRepository
+	AuditLogs  AuditLogRepository
 }
 
 func New(db *sqlx.DB) *Store {
@@ -27,6 +28,7 @@ func New(db *sqlx.DB) *Store {
 		Users:      NewUserRepository(db),
 		Sessions:   NewSessionRepository(db),
 		Workspaces: NewWorkspaceRepository(db),
+		AuditLogs:  NewAuditLogRepository(db),
 	}
 }
 
@@ -41,6 +43,7 @@ func (s *Store) ExecTx(ctx context.Context, fn func(*Store) error) error {
 		Users:      NewUserRepository(tx),
 		Sessions:   NewSessionRepository(tx),
 		Workspaces: NewWorkspaceRepository(tx),
+		AuditLogs:  NewAuditLogRepository(tx),
 	}
 
 	if err := fn(txStore); err != nil {

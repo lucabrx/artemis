@@ -14,6 +14,7 @@ type Config struct {
 	Database DatabaseConfig
 	Redis    RedisConfig
 	MinIO    MinIOConfig
+	NATS     NATSConfig
 	Token    TokenConfig
 }
 
@@ -66,6 +67,10 @@ type TokenConfig struct {
 	RefreshTokenDuration time.Duration
 }
 
+type NATSConfig struct {
+	URL string
+}
+
 func Load() (*Config, error) {
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
@@ -98,6 +103,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("TOKEN_SYMMETRIC_KEY", "12345678901234567890123456789012")
 	viper.SetDefault("ACCESS_TOKEN_DURATION", "15m")
 	viper.SetDefault("REFRESH_TOKEN_DURATION", "168h")
+	viper.SetDefault("NATS_URL", "nats://localhost:4222")
 
 	_ = viper.ReadInConfig()
 
@@ -156,6 +162,9 @@ func Load() (*Config, error) {
 			SymmetricKey:         viper.GetString("TOKEN_SYMMETRIC_KEY"),
 			AccessTokenDuration:  accessDuration,
 			RefreshTokenDuration: refreshDuration,
+		},
+		NATS: NATSConfig{
+			URL: viper.GetString("NATS_URL"),
 		},
 	}
 
