@@ -21,51 +21,51 @@
 	}
 
 	const mainNavigation = [
-		{ href: '/', label: 'Dashboard', icon: 'lucide:layout-dashboard' },
-		{ href: '/clients', label: 'Clients', icon: 'lucide:users' },
-		{ href: '/projects', label: 'Projects', icon: 'lucide:folder-kanban' },
-		{ href: '/tasks', label: 'Tasks', icon: 'lucide:check-square' },
-		{ href: '/time', label: 'Time', icon: 'lucide:clock' }
+		{ href: '/app', label: 'Dashboard', icon: 'lucide:layout-dashboard' },
+		{ href: '/app/clients', label: 'Clients', icon: 'lucide:users' },
+		{ href: '/app/projects', label: 'Projects', icon: 'lucide:folder-kanban' },
+		{ href: '/app/tasks', label: 'Tasks', icon: 'lucide:check-square' },
+		{ href: '/app/time', label: 'Time', icon: 'lucide:clock' }
 	];
 
 	const financialNavigation = [
-		{ href: '/invoices', label: 'Invoices', icon: 'lucide:file-text' },
-		{ href: '/expenses', label: 'Expenses', icon: 'lucide:receipt' },
-		{ href: '/reports', label: 'Reports', icon: 'lucide:bar-chart-3' }
+		{ href: '/app/invoices', label: 'Invoices', icon: 'lucide:file-text' },
+		{ href: '/app/expenses', label: 'Expenses', icon: 'lucide:receipt' },
+		{ href: '/app/reports', label: 'Reports', icon: 'lucide:bar-chart-3' }
 	];
 
 	const resourceNavigation = [
-		{ href: '/templates', label: 'Templates', icon: 'lucide:layout-template' },
-		{ href: '/files', label: 'Files', icon: 'lucide:folder-open' },
-		{ href: '/emails', label: 'Emails', icon: 'lucide:mail', badge: 3 }
+		{ href: '/app/templates', label: 'Templates', icon: 'lucide:layout-template' },
+		{ href: '/app/files', label: 'Files', icon: 'lucide:folder-open' },
+		{ href: '/app/emails', label: 'Emails', icon: 'lucide:mail', badge: 3 }
 	];
 
 	const settingsNavigation = [
-		{ href: '/settings', label: 'Settings', icon: 'lucide:settings' },
-		{ href: '/help', label: 'Help', icon: 'lucide:help-circle' }
+		{ href: '/app/settings', label: 'Settings', icon: 'lucide:settings' },
+		{ href: '/app/help', label: 'Help', icon: 'lucide:help-circle' }
 	];
 
 	const isActive = (href: string) => {
-		if (href === '/') {
-			return page.url.pathname === '/';
+		if (href === '/app') {
+			return page.url.pathname === '/app' || page.url.pathname === '/app/';
 		}
 		return page.url.pathname.startsWith(href);
 	};
 
 	const pageTitle = $derived(() => {
 		const path = page.url.pathname;
-		if (path === '/') return { title: 'Dashboard', subtitle: "Here's what's happening today" };
-		if (path === '/clients') return { title: 'Clients', subtitle: 'Manage your relationships' };
-		if (path === '/projects') return { title: 'Projects', subtitle: 'Track progress and collaborate' };
-		if (path === '/tasks') return { title: 'Tasks', subtitle: 'Stay organized and productive' };
-		if (path === '/time') return { title: 'Time Tracking', subtitle: 'Log hours and manage entries' };
-		if (path === '/invoices') return { title: 'Invoices', subtitle: 'Create and manage billing' };
-		if (path === '/expenses') return { title: 'Expenses', subtitle: 'Track business spending' };
-		if (path === '/reports') return { title: 'Reports', subtitle: 'Insights and analytics' };
-		if (path === '/templates') return { title: 'Templates', subtitle: 'Reusable content' };
-		if (path === '/files') return { title: 'Files', subtitle: 'Documents and assets' };
-		if (path === '/emails') return { title: 'Emails', subtitle: 'Inbox and templates' };
-		if (path === '/settings') return { title: 'Settings', subtitle: 'Configure preferences' };
+		if (path === '/app' || path === '/app/') return { title: 'Dashboard', subtitle: "Here's what's happening today" };
+		if (path.startsWith('/app/clients')) return { title: 'Clients', subtitle: 'Manage your relationships' };
+		if (path.startsWith('/app/projects')) return { title: 'Projects', subtitle: 'Track progress and collaborate' };
+		if (path.startsWith('/app/tasks')) return { title: 'Tasks', subtitle: 'Stay organized and productive' };
+		if (path.startsWith('/app/time')) return { title: 'Time Tracking', subtitle: 'Log hours and manage entries' };
+		if (path.startsWith('/app/invoices')) return { title: 'Invoices', subtitle: 'Create and manage billing' };
+		if (path.startsWith('/app/expenses')) return { title: 'Expenses', subtitle: 'Track business spending' };
+		if (path.startsWith('/app/reports')) return { title: 'Reports', subtitle: 'Insights and analytics' };
+		if (path.startsWith('/app/templates')) return { title: 'Templates', subtitle: 'Reusable content' };
+		if (path.startsWith('/app/files')) return { title: 'Files', subtitle: 'Documents and assets' };
+		if (path.startsWith('/app/emails')) return { title: 'Emails', subtitle: 'Inbox and templates' };
+		if (path.startsWith('/app/settings')) return { title: 'Settings', subtitle: 'Configure preferences' };
 		return { title: 'Artemis', subtitle: '' };
 	});
 
@@ -430,7 +430,7 @@
 										{/each}
 									</div>
 									<div class="border-t border-border mt-2 pt-2 px-1">
-										<Button variant="ghost" size="sm" class="w-full text-xs" href="/notifications">
+										<Button variant="ghost" size="sm" class="w-full text-xs" href="/app/notifications">
 											View all notifications
 										</Button>
 									</div>

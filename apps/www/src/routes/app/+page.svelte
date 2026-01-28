@@ -305,7 +305,7 @@
 								<p class="mt-1 text-sm text-muted-foreground">
 									Use templates to create projects faster. Set up your first template now.
 								</p>
-								<Button variant="link" class="mt-2 h-auto px-0" href="/templates">
+								<Button variant="link" class="mt-2 h-auto px-0" href="/app/templates">
 									Explore templates
 									<Icon icon="lucide:arrow-right" class="ml-1 size-4" />
 								</Button>

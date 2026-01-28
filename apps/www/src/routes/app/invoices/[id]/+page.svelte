@@ -151,7 +151,7 @@
 	<div class="px-6 py-8">
 		<div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 			<div class="flex items-start gap-4">
-				<Button variant="outline" size="icon" href="/invoices">
+				<Button variant="outline" size="icon" href="/app/invoices">
 					<Icon icon="hugeicons:arrow-left-01" class="size-5" />
 				</Button>
 				<div>
@@ -559,7 +559,7 @@ Best regards,
 >
 	<div class="flex justify-end gap-2">
 		<Button variant="outline" onclick={() => showDeleteModal = false}>Cancel</Button>
-		<Button variant="destructive" href="/invoices">
+		<Button variant="destructive" href="/app/invoices">
 			<Icon icon="hugeicons:delete-01" class="mr-2 size-4" />
 			Delete Invoice
 		</Button>

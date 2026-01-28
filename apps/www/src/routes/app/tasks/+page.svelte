@@ -552,7 +552,7 @@
 							<div class="flex-1 space-y-2 overflow-y-auto p-2">
 								{#each columnTasks as task}
 									<a
-										href="/tasks/{task.id}"
+										href="/app/tasks/{task.id}"
 										class="group block rounded-lg border border-border bg-card p-3 transition-all hover:border-primary/20 hover:shadow-md"
 									>
 										<div class="mb-2 flex items-start justify-between gap-2">
@@ -616,7 +616,7 @@
 				<div class="divide-y divide-border">
 					{#each filteredTasks() as task}
 						<a
-							href="/tasks/{task.id}"
+							href="/app/tasks/{task.id}"
 							class="group flex cursor-pointer flex-col gap-4 p-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center"
 						>
 							<div class="flex min-w-0 flex-1 items-center gap-3">

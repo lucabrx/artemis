@@ -455,7 +455,7 @@
 								</div>
 
 								<div class="flex items-center gap-1">
-									<Button variant="ghost" size="icon" class="size-8" href="/invoices/{invoice.id}">
+									<Button variant="ghost" size="icon" class="size-8" href="/app/invoices/{invoice.id}">
 										<Icon icon="hugeicons:view" class="size-4" />
 									</Button>
 									<Button
@@ -523,7 +523,7 @@
 							</div>
 
 							<div class="flex gap-2">
-								<Button variant="outline" size="sm" class="flex-1" href="/invoices/{invoice.id}">
+								<Button variant="outline" size="sm" class="flex-1" href="/app/invoices/{invoice.id}">
 									<Icon icon="hugeicons:view" class="mr-2 size-4" />
 									View
 								</Button>

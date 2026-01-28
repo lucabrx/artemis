@@ -268,7 +268,7 @@
 	<div class="px-6 py-8">
 		<div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 			<div class="flex items-start gap-4">
-				<Button variant="outline" size="icon" href="/tasks">
+				<Button variant="outline" size="icon" href="/app/tasks">
 					<Icon icon="hugeicons:arrow-left-01" class="size-5" />
 				</Button>
 				<div>
@@ -598,7 +598,7 @@
 					<h3 class="mb-4 font-semibold">Related Tasks</h3>
 					<div class="space-y-3">
 						{#each task.relatedTasks as related}
-							<a href="/tasks/{related.id}" class="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
+							<a href="/app/tasks/{related.id}" class="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted">
 								<div class="size-2 rounded-full {related.project.color}"></div>
 								<div class="flex-1 min-w-0">
 									<p class="truncate text-sm font-medium transition-colors group-hover:text-primary">{related.title}</p>
